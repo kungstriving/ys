@@ -65,17 +65,44 @@ class YSProtocol {
         
         $msgJson;
         
-       
+        $commonFormat = "@4/".
+                        "n1msgLen/".
+                        "n1sign/".
+                        "n1msgID/".
+                        "@12/".
+                        "C1objType/".
+                        "C1cmdCode/".
+                        "n1objID"
+                        ;
         
-        $msgJson["sign"] = 1234;
-        $msgJson["msgID"] = 101;
+        $commonArray = unpack($commonFormat, $msgBin);
+        $objType = $commonArray["objType"];
+        echo "objtype is ".$objType."\n";
+        $dataArray;
+        switch ($objType) {
+            case YSProtocol::GATE_OBJ_TYPE:
+                $dataArray = YSProtocol::decodeGateMsg($msgBin);
+                break;
+        }
         
-        $msgDataObj["username"] = "test";
-        $msgDataObj["phonenum"] = "13366666666";
+        $msgArray = array_merge($commonArray, $dataArray);
+        $msgJson = json_encode($msgArray);
+        echo "[YSProtocol::decodeMsg] result in json is " . $msgJson . "\n\n";
+        return $msgJson;
+//         var_dump($commonArray);
+    }
+    
+    private static function decodeGateMsg($msgBin) {
+        $cmdCodeFormat = "@13/C1cmdCode";
+        $cmdCode = unpack($cmdCodeFormat, $msgBin);
         
-        $msgJson["data"] = $msgDataObj;
+        switch ($cmdCode) {
+            case YSProtocol::LOGIN_LAN_GATE_CMDCODE:
+                echo "---------login response ------\n";
+                break;
+        }
         
-        var_dump($msgJson);
+        return array('username'=>"test",'phonenum'=>"13366666666",'gateid'=>"987654321");
     }
     
     private static function encodeGateMsg($msgJsonObj, &$msgLen) {
