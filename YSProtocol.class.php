@@ -1,241 +1,102 @@
 <?php
 
-class YSProtocol {
-    const GATE_OBJ_TYPE = 0;
-    const LIGHT_OBJ_TYPE = 16;
-    const LIGHT_BELT_OBJ_TYPE = 17;
-    
-    const LOGIN_LAN_GATE_CMDCODE = 1;
-    const LOGIN_SERVER_GATE_CMDCODE = 2;
-    const LOGOUT_GATE_CMDCODE = 3;
-    
-    /**
-     * 根据json消息返回二进制数据
-     * 
-     * @param unknown $msgJson
-     */
-    public static function encodeMsg($msgJson) {
-        echo "[YSProtocol::encodeMsg] for -- " . $msgJson. "\n\n";
-        
-        $msgJsonObj = json_decode($msgJson);
-        
-        $msgHead = 0xfefefe7e;
-        $msgHeadBin = pack("N",$msgHead);
-        
-        $msgLen = 0;
-        
-        $msgSign = $msgJsonObj->sign;
-        $msgSignBin = pack("n", $msgSign);
-        $msgID = $msgJsonObj->msgID;
-        $msgIDBin = pack("n", $msgID);
-        
-        $objType = $msgJsonObj->objType;
-        
-        $dataBin;
-        switch ($objType) {
-            case YSProtocol::GATE_OBJ_TYPE:
-                $dataBin = YSProtocol::encodeGateMsg($msgJsonObj, $msgLen);
-                break;
-            case YSProtocol::LIGHT_OBJ_TYPE:
-                break;
-        }
-        
-        $msgLenBin = pack("n", $msgLen);
-        
-        $msgCrc = 255;
-        $msgCrcBin = pack("n", $msgCrc);
-        
-        $msgBin = $msgHeadBin.$msgLenBin.$msgSignBin.$msgIDBin
-                .$dataBin
-                .$msgCrcBin;
-        
-        $tempMsgBin = bin2hex($msgBin);
-        echo "[YSProtocol::encodeMsg] result in HEX[". (strlen($tempMsgBin)/2)."] is ".$tempMsgBin."\n\n";
-        
-        return $msgBin;
-        
-    }
-    
-    /**
-     * 根据二进制数据返回json对象
-     * @param unknown $msgBin
-     * n-双字short
-     * C-单字char
-     * a-读取几个字符的字符串
-     */
-    public static function decodeMsg($msgBin) {
-        echo "[YSProtocol::decodeMsg] for -- ".bin2hex($msgBin)."\n\n";
-        
-        $msgJson;
-        
-        $commonFormat = "@4/".
-                        "n1msgLen/".
-                        "n1sign/".
-                        "n1msgID/".
-                        "@12/".
-                        "C1objType/".
-                        "C1cmdCode/".
-                        "n1objID"
-                        ;
-        
-        $commonArray = unpack($commonFormat, $msgBin);
-        $objType = $commonArray["objType"];
-        
-        $dataArray;
-        $msgCRC;
-        switch ($objType) {
-            case YSProtocol::GATE_OBJ_TYPE:
-                $dataArray = YSProtocol::decodeGateMsg($msgBin, $msgCRC);
-                break;
-        }
-        
-        //加入CRC
-        $commonArray["crc"] = $msgCRC;
-        $msgArray = array_merge($commonArray, $dataArray);
-        $msgJson = json_encode($msgArray);
-        echo "[YSProtocol::decodeMsg] result in json is " . $msgJson . "\n\n";
-        return $msgJson;
-    }
-    
-    private static function decodeGateMsg($msgBin, &$msgCRC) {
-        $dataArray;
-        $cmdFormat = "@13/C1cmdCode";
-        $cmdArr = unpack($cmdFormat, $msgBin);
-        $cmdCode = $cmdArr["cmdCode"];
-        
-//         echo "===== ".$cmdCode."==========\n";
-        
-        switch ($cmdCode) {
-            case YSProtocol::LOGIN_LAN_GATE_CMDCODE:
-                //获取命令返回码
-                $cmdFormat = "@16/n1cmdRetCode";
-                $cmdArr = unpack($cmdFormat, $msgBin);
-                $cmdRetCode = $cmdArr["cmdRetCode"];
-                if ($cmdRetCode == 0) {
-                    //正确
-                    $cmdFormat = "@16/".
-                        "n1cmdRetCode/".
-                        "a32username/".
-                        "a16phoneNum/".
-                        "a8gateID/".
-                        "n1sign/".
-                        "n1gateFixLen/".
-                        "n1gateExtLen/".
-                        "n1protoVer/".
-                        "a8gateID2/".
-                        "a6gateMAC/".
-                        "@128/".
-                        "a16gateName/".
-                        "n1hbLan/".
-                        "n1hbWLan/".
-                        "a68netData/".
-                        "n1crc";
-                    $cmdArr = unpack($cmdFormat, $msgBin);
-                    $msgCRC = $cmdArr["crc"];
-                } else {
-                    //错误
-                    $cmdFormat = "@16/".
-                        "n1cmdRetCode/".
-                        "a32username/".
-                        "a16phoneNum/".
-                        "a8gateID/".
-                        "n1crc";
-                    $cmdArr = unpack($cmdFormat, $msgBin);
-                    $msgCRC = $cmdArr["crc"];
-                }
-                break;
-            case YSProtocol::LOGIN_SERVER_GATE_CMDCODE:
-                $cmdFormat = "@16/n1cmdRetCode";
-                $cmdArr = unpack($cmdFormat, $msgBin);
-                $cmdRetCode = $cmdArr["cmdRetCode"];
-                if ($cmdRetCode == 0) {
-                    //正确
-                    $cmdFormat = "@16/".
-                        "n1cmdRetCode/".
-                        "a32username/".
-                        "a16phoneNum/".
-                        "a8gateID/".
-                        "n1sign/".
-                        "n1gateFixLen/".
-                        "n1gateExtLen/".
-                        "n1protoVer/".
-                        "a8gateID2/".
-                        "a6gateMAC/".
-                        "@128/".
-                        "a16gateName/".
-                        "n1hbLan/".
-                        "n1hbWLan/".
-                        "a68netData/".
-                        "n1crc";
-                    $cmdArr = unpack($cmdFormat, $msgBin);
-                    $msgCRC = $cmdArr["crc"];
-                } else {
-                    //错误
-                    $cmdFormat = "@16/".
-                        "n1cmdRetCode/".
-                        "a32username/".
-                        "a16phoneNum/".
-                        "a8gateID/".
-                        "n1crc";
-                    $cmdArr = unpack($cmdFormat, $msgBin);
-                    $msgCRC = $cmdArr["crc"];
-                }
-                break;
-        }
-        
-        return array('data'=>$cmdArr);
-    }
-    
-    private static function encodeGateMsg($msgJsonObj, &$msgLen) {
-        
-        $cmdCode = $msgJsonObj->cmdCode;
-        $propRegion;
-        $objType = 0;
-        $objID = 0;
-        $packBin;
-        switch ($cmdCode) {
-            case YSProtocol::LOGIN_LAN_GATE_CMDCODE:
-                //局域网登录
-                $propRegion = 0x8000;
-                $propRegionBin = pack("n",$propRegion);
-                $objTypeBin = pack("C",$objType);
-                $cmdCodeBin = pack("C",$cmdCode);
-                $objIDBin = pack("n", $objID);
-                $reservedBin = pack("n",0);
-                $dataBin = pack("a32a16a8",
-                    $msgJsonObj->data->username,
-                    $msgJsonObj->data->phoneNum,
-                    $msgJsonObj->data->gateID);
-                $packBin = $propRegionBin.$objTypeBin . $cmdCodeBin
-                        .$objIDBin.$reservedBin.$dataBin;
-                $msgLen = 18+58;
-                break;
-            case YSProtocol::LOGIN_SERVER_GATE_CMDCODE:
-                //服务器登录
-                $propRegion = 0x8000;
-                $propRegionBin = pack("n",$propRegion);
-                $objTypeBin = pack("C", $objType);
-                $cmdCodeBin = pack("C", $cmdCode);
-                $objIDBin = pack("n", $objID);
-                $reservedBin = pack("n",0);
-                $dataBin = pack("a32a16a8",
-                    $msgJsonObj->data->username,
-                    $msgJsonObj->data->phoneNum,
-                    $msgJsonObj->data->gateID);
-                $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin
-                        .$objIDBin.$reservedBin.$dataBin;
-                $msgLen = 18+58;//18固定+用户名手机网关crc
-                break;
-            case YSProtocol::LOGOUT_GATE_CMDCODE:
-                //从0A开始
-                $propRegion = 0x8000;
-                $propRegionBin = pack("n", $propRegion);
-                break;
-        }
-        
-        return $packBin;
-    }
-    
-}
+include 'YSProtocol.class.php';
+//include 'YSProtocol.class.min.php';
+
+///////////////// 测试 /////////////////////
+
+//////////////// 手机局域网登录 /////////////////
+$testLoginLanJson = '{
+    "sign":1234,
+    "msgID":101,
+    "objType":0,
+    "cmdCode":1,
+    "objID":0,
+    "data":{
+        "username":"test",
+        "phoneNum":"13366666666",
+        "gateID":"987654321"
+    },
+    "crc":555
+}';
+
+//objType = 0 //关
+//cmdCode = 1 //手机局域网登录
+
+$testBin = YSProtocol::encodeMsg($testLoginLanJson);
+
+//没有真实数据
+//$decodedJson = YSProtocol::decodeMsg($testBin);
+
+//echo json_decode($decodedJson)->data->username;
+
+//////////////// 手机服务器登录 //////////////////
+
+// objType = 0; //网关
+//cmdCode = 2;//手机服务器登录
+$testLoginServerJson = '{
+    "sign":1234,
+    "msgID":101,
+    "objType":0,
+    "cmdCode":2,
+    "objID":0,
+    "data":{
+        "username":"test",
+        "phoneNum":"13366666666",
+        "gateID":"987654321"
+    },
+    "crc":555
+}';
+
+$testBin = YSProtocol::encodeMsg($testLoginServerJson);
 
 
+///////////////// 手机退出登录 ////////////////
+$testLogoutJson = '{
+    "sign":1234,
+    "msgID":102,
+    "objType":0,
+    "cmdCode":3,
+    "objID":0
+}';
+
+$testBin = YSProtocol::encodeMsg($testLogoutJson);
+
+
+//////////////// 手机心跳 ////////////////////
+$testHeartBeatJson = '{
+    "sign":1234,
+    "msgID":103,
+    "objType":0,
+    "cmdCode":4,
+    "objID":0,
+    "data":{
+        "phoneNum":"13366666666",
+        "year":2017,
+        "month":11,
+        "day":25,
+        "hour":10,
+        "minute":39,
+        "second":10,
+        "weekday":4,
+        "hb":300
+    },
+    "crc":255
+}';
+
+$testBin = YSProtocol::encodeMsg($testHeartBeatJson);
+
+////////////////// 服务器识别网关 ///////////
+$testServerIdentifyGateJson = '{
+    "sign":1234,
+    "msgID":104,
+    "objType":0,
+    "cmdCode":5,
+    "objID":0,
+    "data":{
+        "serverID":"YS-PHP-Server"
+    },
+    "crc":255
+}';
+
+$testBin = YSProtocol::encodeMsg($testServerIdentifyGateJson);
