@@ -13,11 +13,11 @@ $testLoginLanJson = '{
     "cmdCode":1,
     "objID":0,
     "data":{
-        "username":"test",
-        "phoneNum":"13366666666",
-        "gateID":"987654321"
+        "username":"kxy",
+        "phoneNum":"13361815235",
+        "gateID":"87654321"
     },
-    "crc":555
+    "crc":254
 }';
 
 //objType = 0 //关
@@ -25,8 +25,10 @@ $testLoginLanJson = '{
 
 $testBin = YSProtocol::encodeMsg($testLoginLanJson);
 
-//没有真实数据
-//$decodedJson = YSProtocol::decodeMsg($testBin);
+//
+$testBin = "FEFEFE7E00FA04D2006540000001000000006B7879000000000000000000000000000000000000000000000000000000000031333336313831353233350000000000383736353433323100FF000000000000000000000000000000000000000000000000000000000000FF7E008800000301000D6F0002CB3155ACCF23BFB41A000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000012C012C000D6F0002CB3155FF216154B71C31FA4C09D22390811861A69799BE9B9BBF9494979F929D9BD0C7010100008639021366C54FF74C5D385002800100005000006A950819375F";
+
+$decodedJson = YSProtocol::decodeMsg($testBin);
 
 //echo json_decode($decodedJson)->data->username;
 
@@ -48,7 +50,7 @@ $testLoginServerJson = '{
     "crc":555
 }';
 
-$testBin = YSProtocol::encodeMsg($testLoginServerJson);
+//$testBin = YSProtocol::encodeMsg($testLoginServerJson);
 
 
 ///////////////// 手机退出登录 ////////////////
@@ -60,7 +62,7 @@ $testLogoutJson = '{
     "objID":0
 }';
 
-$testBin = YSProtocol::encodeMsg($testLogoutJson);
+//$testBin = YSProtocol::encodeMsg($testLogoutJson);
 
 
 //////////////// 手机心跳 ////////////////////
@@ -84,7 +86,7 @@ $testHeartBeatJson = '{
     "crc":255
 }';
 
-$testBin = YSProtocol::encodeMsg($testHeartBeatJson);
+//$testBin = YSProtocol::encodeMsg($testHeartBeatJson);
 
 ////////////////// 服务器识别网关 ///////////
 $testServerIdentifyGateJson = '{
@@ -99,4 +101,39 @@ $testServerIdentifyGateJson = '{
     "crc":255
 }';
 
-$testBin = YSProtocol::encodeMsg($testServerIdentifyGateJson);
+//$testBin = YSProtocol::encodeMsg($testServerIdentifyGateJson);
+
+/////////// 搜索新终端 ////////
+$testSearchNewDevsJson = '{
+    "sign":255,
+    "msgID":105,
+    "objType":0,
+    "cmdCode":10,
+    "objID":0,
+    "data":{
+        "lastSecs":10
+    },
+    "crc":111
+}';
+
+//$testBin = YSProtocol::encodeMsg($testSearchNewDevsJson);
+
+$testBin = "FEFEFE7E001600FF00694000000B0000000000002042";
+
+//$decodedJson = YSProtocol::decodeMsg($testBin);
+
+/////////// 列表网关所有终端 ////////
+$testListAllDevsJson = '{
+    "sign":255,
+    "msgID":105,
+    "objType":0,
+    "cmdCode":11,
+    "objID":0,
+    "crc":255
+}';
+
+$testBin = YSProtocol::encodeMsg($testListAllDevsJson);
+
+$testBin = "FEFEFE7E003A00FF00694000000B000000000003DF9C1001000D6F000D317F5D0B2D1001000D6F000D314DFE8DA21001000D6F000D315F51683E";
+
+$decodedJson = YSProtocol::decodeMsg($testBin);
