@@ -1,0 +1,13 @@
+﻿# Project information
+site_name: '盈烁SDK-PHP使用手册'
+site_description: 'PHP版本帮助手册'
+site_author: 'Jerry.K'
+
+pages:
+    - 使用帮助: index.md
+
+# Configuration
+theme:
+  name: 'material'
+  
+
