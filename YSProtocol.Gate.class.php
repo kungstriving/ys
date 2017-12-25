@@ -9,6 +9,7 @@ class GateYSProtocol {
     const LOGOUT_GATE_CMDCODE = 3;
     const HEARTBEAT_GATE_CMDCODE = 4;
     const SERVER_IDENTIFY_GATE_CMDCODE = 5;
+    const SERVER_HEARTBEAT_GATE_CMDCODE = 6;//服务器心跳
     const SEARCH_NEW_DEVS_GATE_CMDCODE = 10;
     const LIST_ALL_DEVS_GATE_CMDCODE = 11;
     
@@ -36,25 +37,26 @@ class GateYSProtocol {
     }
     
     private static function loginServer($msgJsonObj, &$msgLen) {
+        echo "\n -------- login server encode ------------\n";
         $propRegion = 0x8000;
         $propRegionBin = pack("n",$propRegion);
         $objTypeBin = pack("C", self::$objType);
         $cmdCodeBin = pack("C", self::$cmdCode);
         $objIDBin = pack("n", self::$objID);
         $reservedBin = pack("n",0);
-        $dataBin = pack("a32a16a8",
+        $dataBin = pack("a64a16h16",
             $msgJsonObj->data->username,
             $msgJsonObj->data->phoneNum,
             $msgJsonObj->data->gateID);
         $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin
                     .$objIDBin.$reservedBin.$dataBin;
-        $msgLen = 18+58;//18固定+用户名手机网关crc
+        $msgLen = 18+90;//18固定+用户名手机网关crc
         
         return $packBin;
     }
     
     private static function logout($msgJsonObj, &$msgLen) {
-        echo "\n -------- logout ------------\n";
+        echo "\n -------- logout encode ------------\n";
         
         $propRegion = 0x8000;
         $propRegionBin = pack("n", $propRegion);
@@ -94,10 +96,35 @@ class GateYSProtocol {
         return $packBin;
     }
     
+    private static function serverHeartbeat($msgJsonObj, &$msgLen) {
+        //服务器心跳
+        echo "\n --------------- hb server ----------\n";
+        $propRegion = 0x8000;
+        $propRegionBin = pack("n", $propRegion);
+        $objTypeBin = pack("C", self::$objType);
+        $cmdCodeBin = pack("C", self::$cmdCode);
+        $objIDBin = pack("n", self::$objID);
+        $dataBin = pack("a16n1C1C1C1C1C1C1n1",
+            $msgJsonObj->data->serverID,
+            $msgJsonObj->data->year,
+            $msgJsonObj->data->month,
+            $msgJsonObj->data->day,
+            $msgJsonObj->data->hour,
+            $msgJsonObj->data->minute,
+            $msgJsonObj->data->second,
+            $msgJsonObj->data->weekday,
+            $msgJsonObj->data->hb);
+        $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin
+        .$objIDBin.$dataBin;
+        $msgLen = 18+26;//18固定+服务器标识年月日心跳crc
+        
+        return $packBin;
+    }
+    
     private static function serverIdentifyGate($msgJsonObj, &$msgLen) {
         //服务器识别网关
         //从0A开始
-        echo "\n -------- identify gate ------------\n";
+        echo "\n -------- server identify gate ------------\n";
         
         $propRegion = 0x8000;
         $propRegionBin = pack("n", $propRegion);
@@ -167,6 +194,9 @@ class GateYSProtocol {
             case self::HEARTBEAT_GATE_CMDCODE:
                 $packBin = self::heartbeat($msgJsonObj, $msgLen);
                 break;
+            case self::SERVER_HEARTBEAT_GATE_CMDCODE:
+                $packBin = self::serverHeartbeat($msgJsonObj, $msgLen);
+                break;
             case self::SERVER_IDENTIFY_GATE_CMDCODE:
                 $packBin = self::serverIdentifyGate($msgJsonObj, $msgLen);
                 break;
@@ -204,12 +234,14 @@ class GateYSProtocol {
                 break;
             case self::LOGOUT_GATE_CMDCODE:
                 //退出登录
+                echo "\n --- logout decode ---\n";
                 $cmdFormat = "@16/n1cmdRetCode/n1crc";
                 $cmdArr = unpack($cmdFormat, $msgBin);
                 $msgCRC = $cmdArr["crc"];
                 break;
             case self::HEARTBEAT_GATE_CMDCODE:
                 //心跳的回应
+                echo "\n --- hb decode ---\n";
                 $cmdFormat = "@16/n1cmdRetCode/n1crc";
                 $cmdArr = unpack($cmdFormat, $msgBin);
                 $msgCRC = $cmdArr["crc"];
@@ -218,8 +250,15 @@ class GateYSProtocol {
             case self::SERVER_IDENTIFY_GATE_CMDCODE:
                 $cmdArr = self::serverIdentifyDecode($msgBin, $msgCRC);
                 break;
+            case self::SERVER_HEARTBEAT_GATE_CMDCODE:
+                echo "\n --- hb server decode ---\n";
+                $cmdFormat = "@16/n1cmdRetCode/n1crc";
+                $cmdArr = unpack($cmdFormat, $msgBin);
+                $msgCRC = $cmdArr["crc"];
+                break;
             case self::SEARCH_NEW_DEVS_GATE_CMDCODE:
-                //服务器搜索新设备的回应
+                //搜索新设备的回应
+                echo "\n --- search new devs decode ---\n";
                 $cmdFormat="@16/n1cmdRetCode/n1crc";
                 $cmdArr = unpack($cmdFormat, $msgBin);
                 $msgCRC = $cmdArr["crc"];
@@ -234,12 +273,14 @@ class GateYSProtocol {
     }
     
     private static function listAllDevsDecode($msgBin, &$msgCRC) {
+        echo "\n --- list all devs decode ---\n";
         //服务器列表所有终端的回应
         $cmdFormat = "@16/n1cmdRetCode";
         $cmdArr = unpack($cmdFormat, $msgBin);
         $cmdRetCode = $cmdArr["cmdRetCode"];
         
         if ($cmdRetCode == 0) {
+            $cmdArr["cmdRetCode"] = $cmdRetCode;
             //正确，读取站点数量
             $cmdFormat = "@18/n1devNum";
             $cmdArr = unpack($cmdFormat, $msgBin);
@@ -248,10 +289,11 @@ class GateYSProtocol {
             $cmdFormat = "@20/";
             
             for ($i = 0; $i < $devNum; $i++) {
-                $cmdFormat = $cmdFormat."n1dev".$i."ID/n1dev".$i."Type/H8dev".$i."MAC/";
+                $cmdFormat = $cmdFormat."n1dev".$i."ID/n1dev".$i."Type/h16dev".$i."MAC/";
             }
             
             $cmdFormat = $cmdFormat."n1crc";
+            echo "[debug ---]devnum".$cmdFormat."\n";
             
             $cmdArr = unpack($cmdFormat, $msgBin);
             $cmdArr["devNum"] = $devNum;
@@ -273,6 +315,7 @@ class GateYSProtocol {
      */
      private static function serverIdentifyDecode($msgBin, &$msgCRC)
     {
+        echo "\n --- server identify decode ---\n";
         //服务器识别网关的回应
         $cmdFormat = "@16/n1cmdRetCode";
         $cmdArr = unpack($cmdFormat, $msgBin);
@@ -281,13 +324,13 @@ class GateYSProtocol {
             //正确
             $cmdFormat = "@16/".
                 "n1cmdRetCode/".
-                "a16serverID/".
+                "A16serverID/".
                 "n1sign/".
                 "n1gateFixLen/".
                 "n1gateExtLen/".
                 "n1protoVer/".
-                "a8gateID/".
-                "a6gateMAC/".
+                "h16gateID/".
+                "h12gateMAC/".
                 "@88/".
                 "a16gateName/".
                 "n1hbLan/".
@@ -314,6 +357,7 @@ class GateYSProtocol {
      */
      private static function loginServerDecode($msgBin, &$msgCRC)
     {
+        echo "\n --- login server decode ---\n";
         $cmdFormat = "@16/n1cmdRetCode";
         $cmdArr = unpack($cmdFormat, $msgBin);
         $cmdRetCode = $cmdArr["cmdRetCode"];
@@ -321,16 +365,16 @@ class GateYSProtocol {
             //正确
             $cmdFormat = "@16/".
                 "n1cmdRetCode/".
-                "A32username/".
+                "A64username/".
                 "A16phoneNum/".
-                "A8gateID/".
+                "h16gateID/".
                 "n1sign/".
                 "n1gateFixLen/".
                 "n1gateExtLen/".
                 "n1protoVer/".
-                "A8gateID2/".
-                "A6gateMAC/".
-                "@128/".
+                "h16gateID2/".
+                "h12gateMAC/".
+                "@160/".
                 "A16gateName/".
                 "n1hbLan/".
                 "n1hbWLan/".
@@ -342,9 +386,9 @@ class GateYSProtocol {
             //错误
             $cmdFormat = "@16/".
                 "n1cmdRetCode/".
-                "a32username/".
-                "a16phoneNum/".
-                "a8gateID/".
+                "A64username/".
+                "A16phoneNum/".
+                "h16gateID/".
                 "n1crc";
             $cmdArr = unpack($cmdFormat, $msgBin);
             $msgCRC = $cmdArr["crc"];
