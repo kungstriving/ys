@@ -1,13 +1,15 @@
 <?php
 
-// include 'YSProtocol.Gate.class.php';
-// include 'YSProtocol.Device.class.php';
-include 'YSProtocol.Gate.class.min.php';
-include 'YSProtocol.Device.class.min.php';
+include 'YSProtocol.Gate.class.php';
+include 'YSProtocol.Device.class.php';
+include 'YSProtocol.Config.class.php';
+//include 'YSProtocol.Gate.class.min.php';
+//include 'YSProtocol.Device.class.min.php';
 
 class Third_Ys_Sdk {
     //对象类型
     const GATE_OBJ_TYPE = 0;
+    const DEVICE_TYPE = 4;
     const LIGHT_OBJ_TYPE = 16;
     const LIGHT_BELT_OBJ_TYPE = 17;
     
@@ -38,13 +40,14 @@ class Third_Ys_Sdk {
             case Third_Ys_Sdk::GATE_OBJ_TYPE:
                 $dataBin = GateYSProtocol::encodeGateMsg($msgJsonObj, $msgLen);
                 break;
-            case Third_Ys_Sdk::LIGHT_OBJ_TYPE:
+            case Third_Ys_Sdk::DEVICE_TYPE:
+                $dataBin = DeviceYSProtocol::encodeDeviceMsg($msgJsonObj, $msgLen);
                 break;
         }
         
         $msgLenBin = pack("n", $msgLen);
         
-        $msgCrc = 255;
+        $msgCrc = 255;      //暂固定
         $msgCrcBin = pack("n", $msgCrc);
         
         $msgBin = $msgHeadBin.$msgLenBin.$msgSignBin.$msgIDBin
@@ -90,6 +93,9 @@ class Third_Ys_Sdk {
             case Third_Ys_Sdk::GATE_OBJ_TYPE:
                 
                 $dataArray = GateYSProtocol::decodeGateMsg($msgBinReal, $msgCRC);
+                break;
+            case Third_Ys_Sdk::DEVICE_TYPE:
+                $dataArray = DeviceYSProtocol::decodeDeviceMsg($msgBinReal, $msgCRC);
                 break;
         }
         
