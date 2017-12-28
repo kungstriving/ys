@@ -1,7 +1,7 @@
 <?php
 
-// include 'YSProtocol.class.php';
-include 'YSProtocol.class.min.php';
+include 'YSProtocol.class.php';
+// include 'YSProtocol.class.min.php';
 
 ///////////////// 测试 /////////////////////
 
@@ -186,3 +186,41 @@ $testListAllDevsJson = '{
 $testBin = "FEFEFE7E003AC3BA00694000000B000000000003DF9C1001000D6F000D317F5D0B2D1001000D6F000D314DFE8DA21001000D6F000D315F51CDB2";
 
 $decodedJson = Third_Ys_Sdk::decodeMsg($testBin);
+
+////////////////////// 网关 读取配置属性测试 ///////////////////////
+////【测试通过】
+
+$testConfigReadGate = '{
+    "sign":50210,
+    "msgID":106,
+    "objType":0,
+    "cmdCode":192,
+    "objID":1,
+    "crc":255
+}';
+// objID = 1 读取网关配置
+//$testBin = Third_Ys_Sdk::encodeMsg($testConfigReadGate);
+
+$testBin = "FEFEFE7E00A4C422006A400000C00001000000000001008800000301000D6F0002CB3155ACCF23BFB41A000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000012C012C000D6F0002CB3155FF216154B71C31FA4C09D22390811861A69799BE9B9BBF9494979F929D9BD0C7010100008639021366C54FF74C5D385002800100005000006A950819C753";
+
+//$decodedJson = Third_Ys_Sdk::decodeMsg($testBin);
+
+//////////////////////// 色灯 读取配置属性测试 /////////////////
+
+$testConfigReadLight = '{
+    "sign":50210,
+    "msgID":107,
+    "objType":4,
+    "cmdCode":192,
+    "objID":57244,
+    "crc":255
+}';
+// objID = 57244 读取色灯配置
+$testBin = Third_Ys_Sdk::encodeMsg($testConfigReadLight);
+
+$testBin = "FEFEFE7E0044C422006B400004C0DF9C00000400DF9C00240004000D6F000D317F5D00001001706F00300031000000000000000000000000000100000000E000000073B2";
+
+$decodedJson = Third_Ys_Sdk::decodeMsg($testBin);
+
+
+
