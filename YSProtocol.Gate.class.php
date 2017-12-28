@@ -12,6 +12,7 @@ class GateYSProtocol {
     const SERVER_HEARTBEAT_GATE_CMDCODE = 6;//服务器心跳
     const SEARCH_NEW_DEVS_GATE_CMDCODE = 10;
     const LIST_ALL_DEVS_GATE_CMDCODE = 11;
+    const READ_CONFIG_GATE_CMDCODE = 192;
     
     private static $cmdCode;
     private static $objType = 0;
@@ -206,6 +207,21 @@ class GateYSProtocol {
             case self::LIST_ALL_DEVS_GATE_CMDCODE:
                 $packBin = self::listAllDevs($msgJsonObj, $msgLen);
                 break;
+            case self::READ_CONFIG_GATE_CMDCODE:
+                echo "\n --- read config ---\n";
+                $cmdCode = $msgJsonObj->cmdCode;
+                $objType = $msgJsonObj->objType;
+                $objID = $msgJsonObj->objID;
+                
+                $propRegion = 0x8000;
+                $propRegionBin = pack("n", $propRegion);
+                $objTypeBin = pack("C", $objType);
+                $cmdCodeBin = pack("C", $cmdCode);
+                $objIDBin = pack("n", $objID);
+                $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin
+                    .$objIDBin;
+                $msgLen = 18+0;
+                break;
         }
         
         return $packBin;
@@ -266,10 +282,55 @@ class GateYSProtocol {
             case self::LIST_ALL_DEVS_GATE_CMDCODE:
                 $cmdArr = self::listAllDevsDecode($msgBin, $msgCRC);
                 break;
+            case self::READ_CONFIG_GATE_CMDCODE:
+                $cmdArr = self::readConfigDecode($msgBin, $msgCRC);
+                break;
         }
         
         return array('data'=>$cmdArr);
         
+    }
+    
+    private static function readConfigDecode($msgBin, &$msgCRC) {
+        echo "\n --- read config decode ---\n";
+        //读取网关配置信息
+        $cmdFormat = "@16/n1cmdRetCode";
+        $cmdArr = unpack($cmdFormat, $msgBin);
+        $cmdRetCode = $cmdArr["cmdRetCode"];
+        
+        if ($cmdRetCode == 0) {
+            $cmdArr["cmdRetCode"] = $cmdRetCode;
+            //正确
+            
+            $cmdFormat = "@16/".
+                "n1cmdRetCode/".
+                "C1dataObjType/".
+                "C1sliceID/".
+                "n1dataObjID/".
+                "n1gateFixLen/".
+                "n1gateExtLen/".
+                "n1protoVer/".
+                "h16gateID/".
+                "h12gateMAC/".
+                "a32reserved/".
+                "a16gateName/".
+                "n1hbLan/".
+                "n1hbWLan/".
+                "h136netData/".
+                "n1crc";
+            $cmdArr = unpack($cmdFormat, $msgBin);
+            $msgCRC = $cmdArr["crc"];
+            
+        } else {
+            //错误
+            $cmdFormat = "@16/".
+                "n1cmdRetCode/".
+                "n1crc";
+            $cmdArr = unpack($cmdFormat, $msgBin);
+            $msgCRC = $cmdArr["crc"];
+        }
+        
+        return $cmdArr;
     }
     
     private static function listAllDevsDecode($msgBin, &$msgCRC) {
