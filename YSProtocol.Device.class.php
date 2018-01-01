@@ -16,14 +16,33 @@ class DeviceYSProtocol {
                 $objType = $msgJsonObj->objType;
                 $objID = $msgJsonObj->objID;
                 
-                $propRegion = 0x8000;
-                $propRegionBin = pack("n", $propRegion);
-                $objTypeBin = pack("C", $objType);
-                $cmdCodeBin = pack("C", $cmdCode);
-                $objIDBin = pack("n", $objID);
-                $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin
-                    .$objIDBin;
-                $msgLen = 18+0;
+                
+                if (property_exists($msgJsonObj, "sliceSeq")) {
+                    
+                    //分片
+                    $sliceSeq = $msgJsonObj->sliceSeq;
+                    
+                    $propRegion = 0x8080;
+                    $propRegionBin = pack("n", $propRegion);
+                    $objTypeBin = pack("C", $objType);
+                    $cmdCodeBin = pack("C", $cmdCode);
+                    $objIDBin = pack("n", $objID);
+                    $sliceSeqBin = pack("n", $sliceSeq);
+                    
+                    $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin
+                        .$objIDBin.$sliceSeqBin;
+                    $msgLen = 20+0;
+                    
+                } else {
+                    $propRegion = 0x8000;
+                    $propRegionBin = pack("n", $propRegion);
+                    $objTypeBin = pack("C", $objType);
+                    $cmdCodeBin = pack("C", $cmdCode);
+                    $objIDBin = pack("n", $objID);
+                    $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin
+                        .$objIDBin;
+                    $msgLen = 18+0;
+                }
                 break;
         }
         
@@ -55,41 +74,137 @@ class DeviceYSProtocol {
     private static function readConfigDecode($msgBin, &$msgCRC) {
         echo "\n --- device config decode ---\n";
         //读取设备配置信息
-        $cmdFormat = "@16/n1cmdRetCode";
-        $cmdArr = unpack($cmdFormat, $msgBin);
-        $cmdRetCode = $cmdArr["cmdRetCode"];
         
-        if ($cmdRetCode == 0) {
-            $cmdArr["cmdRetCode"] = $cmdRetCode;
-            //正确
+        //根据单个或所有来区分
+        $cmdFormat = "@14/n1objID";
+        $cmdArr = unpack($cmdFormat, $msgBin);
+        $objID = $cmdArr["objID"];
+        
+        if ($objID == 65535) {
+            //65535=同类别所有设备
             
-            $cmdFormat = "@16/".
-                "n1cmdRetCode/".
-                "C1dataObjType/".
-                "C1sliceID/".
-                "n1dataObjID/".
-                "n1fixLen/".
-                "n1extLen/".
-                "h16devID/".
-                "n1parentID/".
-                "n1devType/".
-                "a16devName/".
-                "n1reserved/".
-                "C1staSeq/".
-                "C1softVer/".
-                "n1startClock/".
-                "n1stopClock/".
-                "n1crc";
+            echo "\n --- device config ALL decode ---\n";
+            
+            //是否有分片
+            $cmdFormat = "@10/n1propRegion";
             $cmdArr = unpack($cmdFormat, $msgBin);
-            $msgCRC = $cmdArr["crc"];
+            $propRegion = $cmdArr["propRegion"];
+            
+            $sliceM = 0x0080 & $propRegion;
+            if ($sliceM == 0x0080) {
+                //分片
+                
+                //正确或错误应答
+                $sliceE = 0x0040 & $propRegion;
+                
+                if ($sliceE == 0x0040) {
+                    //错误
+                    $cmdFormat = "@16/".
+                        "n1cmdRetCode/".
+                        "n1crc";
+                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    $msgCRC = $cmdArr["crc"];
+                } else {
+                    //正确
+                    $cmdFormat = "@18/n1objNum";
+                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    $objNum = $cmdArr["objNum"];
+                    
+                    $cmdFormat = "@16/n1sliceID/".
+                        "n1objNum/";
+                    
+                    for ($i = 0; $i < $objNum; $i++) {
+                        $cmdFormat = $cmdFormat."C1dataObj".$i."Type/C1dataObj".$i."reserved/n1dataObj".$i."ID/n1dataObj".$i."FixLen/n1dataObj".$i."ExtLen/";
+                        $cmdArr = unpack($cmdFormat, $msgBin);
+                        $objFixLen = $cmdArr["dataObj".$i."FixLen"];
+                        $objExtLen = $cmdArr["dataObj".$i."ExtLen"];
+                        $cmdFormat = $cmdFormat."h".($objFixLen*2)."dataObj".$i."Fix/";
+                        $cmdFormat = $cmdFormat."h".($objExtLen*2)."dataObj".$i."Ext/";
+                    }
+                    
+                    $cmdFormat = $cmdFormat."n1crc";
+                }
+                
+            } else {
+                //不分片
+                
+                //正确或错误应答
+                
+                $cmdFormat = "@16/n1cmdRetCode/";
+                $cmdArr = unpack($cmdFormat, $msgBin);
+                $cmdRetCode = $cmdArr["cmdRetCode"];
+                
+                if ($cmdRetCode == 0) {
+                    //正确
+                    $cmdFormat = "@18/n1objNum";
+                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    $objNum = $cmdArr["objNum"];
+                    
+                    $cmdFormat = "@16/n1cmdRetCode/".
+                        "n1objNum/";
+                    
+                    for ($i = 0; $i < $objNum; $i++) {
+                        $cmdFormat = $cmdFormat."C1dataObj".$i."Type/C1dataObj".$i."reserved/n1dataObj".$i."ID/n1dataObj".$i."FixLen/n1dataObj".$i."ExtLen/";
+                        $cmdArr = unpack($cmdFormat, $msgBin);
+                        $objFixLen = $cmdArr["dataObj".$i."FixLen"];
+                        $objExtLen = $cmdArr["dataObj".$i."ExtLen"];
+                        $cmdFormat = $cmdFormat."h".($objFixLen*2)."dataObj".$i."Fix/";
+                        $cmdFormat = $cmdFormat."h".($objExtLen*2)."dataObj".$i."Ext/";
+                    }
+                    
+                    $cmdFormat = $cmdFormat."n1crc";
+                    
+                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    $msgCRC = $cmdArr["crc"];
+                } else {
+                    $cmdFormat = "@16/".
+                        "n1cmdRetCode/".
+                        "n1crc";
+                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    $msgCRC = $cmdArr["crc"];
+                }
+                
+            }
             
         } else {
-            //错误
-            $cmdFormat = "@16/".
-                "n1cmdRetCode/".
-                "n1crc";
+            //单个设备
+            
+            $cmdFormat = "@16/n1cmdRetCode/";
             $cmdArr = unpack($cmdFormat, $msgBin);
-            $msgCRC = $cmdArr["crc"];
+            $cmdRetCode = $cmdArr["cmdRetCode"];
+            
+            if ($cmdRetCode == 0) {
+                
+                //正确
+                $cmdFormat = "@16/".
+                    "n1cmdRetCode/".
+                    "C1dataObjType/".
+                    "C1sliceID/".
+                    "n1dataObjID/".
+                    "n1fixLen/".
+                    "n1extLen/".
+                    "h16devID/".
+                    "n1parentID/".
+                    "n1devType/".
+                    "a16devName/".
+                    "n1reserved/".
+                    "C1staSeq/".
+                    "C1softVer/".
+                    "n1startClock/".
+                    "n1stopClock/".
+                    "n1crc";
+                $cmdArr = unpack($cmdFormat, $msgBin);
+                $msgCRC = $cmdArr["crc"];
+            } else {
+                //错误
+                $cmdFormat = "@16/".
+                    "n1cmdRetCode/".
+                    "n1crc";
+                $cmdArr = unpack($cmdFormat, $msgBin);
+                $msgCRC = $cmdArr["crc"];
+            }
+            
+            $cmdArr["cmdRetCode"] = $cmdRetCode;
         }
         
         return $cmdArr;
