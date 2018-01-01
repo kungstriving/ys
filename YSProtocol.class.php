@@ -86,7 +86,6 @@ class Third_Ys_Sdk {
         $commonArray = unpack($commonFormat, $msgBinReal);
         $objType = $commonArray["objType"];
         
-        
         $dataArray;
         $msgCRC;
         switch ($objType) {
