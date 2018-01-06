@@ -1,5 +1,6 @@
 <?php
 
+
 class GateYSProtocol {
     
     //命令码
@@ -14,16 +15,16 @@ class GateYSProtocol {
     const LIST_ALL_DEVS_GATE_CMDCODE = 11;
     const READ_CONFIG_GATE_CMDCODE = 192;
     
-    private static $cmdCode;
     private static $objType = 0;
     private static $objID = 0;
     
     private static function loginLan($msgJsonObj, &$msgLen) {
         
+        $cmdCode = $msgJsonObj->cmdCode;
         $propRegion = 0x8000;
         $propRegionBin = pack("n",$propRegion);
         $objTypeBin = pack("C",self::$objType);
-        $cmdCodeBin = pack("C",self::$cmdCode);
+        $cmdCodeBin = pack("C",$cmdCode);
         $objIDBin = pack("n", self::$objID);
         $reservedBin = pack("n",0);
         $dataBin = pack("a32a16a8",
@@ -39,10 +40,11 @@ class GateYSProtocol {
     
     private static function loginServer($msgJsonObj, &$msgLen) {
         echo "\n -------- login server encode ------------\n";
+        $cmdCode = $msgJsonObj->cmdCode;
         $propRegion = 0x8000;
         $propRegionBin = pack("n",$propRegion);
         $objTypeBin = pack("C", self::$objType);
-        $cmdCodeBin = pack("C", self::$cmdCode);
+        $cmdCodeBin = pack("C", $cmdCode);
         $objIDBin = pack("n", self::$objID);
         $reservedBin = pack("n",0);
         $dataBin = pack("a64a16h16",
@@ -58,11 +60,11 @@ class GateYSProtocol {
     
     private static function logout($msgJsonObj, &$msgLen) {
         echo "\n -------- logout encode ------------\n";
-        
+        $cmdCode = $msgJsonObj->cmdCode;
         $propRegion = 0x8000;
         $propRegionBin = pack("n", $propRegion);
         $objTypeBin = pack("C", self::$objType);
-        $cmdCodeBin = pack("C", self::$cmdCode);
+        $cmdCodeBin = pack("C", $cmdCode);
         $objIDBin = pack("n", self::$objID);
         $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin
             .$objIDBin;
@@ -75,10 +77,11 @@ class GateYSProtocol {
         //手机心跳
         //从0A开始
         echo "\n --------------- hb ----------\n";
+        $cmdCode = $msgJsonObj->cmdCode;
         $propRegion = 0x8000;
         $propRegionBin = pack("n", $propRegion);
         $objTypeBin = pack("C", self::$objType);
-        $cmdCodeBin = pack("C", self::$cmdCode);
+        $cmdCodeBin = pack("C", $cmdCode);
         $objIDBin = pack("n", self::$objID);
         $dataBin = pack("a16n1C1C1C1C1C1C1n1",
             $msgJsonObj->data->phoneNum,
@@ -100,10 +103,11 @@ class GateYSProtocol {
     private static function serverHeartbeat($msgJsonObj, &$msgLen) {
         //服务器心跳
         echo "\n --------------- hb server ----------\n";
+        $cmdCode = $msgJsonObj->cmdCode;
         $propRegion = 0x8000;
         $propRegionBin = pack("n", $propRegion);
         $objTypeBin = pack("C", self::$objType);
-        $cmdCodeBin = pack("C", self::$cmdCode);
+        $cmdCodeBin = pack("C", $cmdCode);
         $objIDBin = pack("n", self::$objID);
         $dataBin = pack("a16n1C1C1C1C1C1C1n1",
             $msgJsonObj->data->serverID,
@@ -126,11 +130,11 @@ class GateYSProtocol {
         //服务器识别网关
         //从0A开始
         echo "\n -------- server identify gate ------------\n";
-        
+        $cmdCode = $msgJsonObj->cmdCode;
         $propRegion = 0x8000;
         $propRegionBin = pack("n", $propRegion);
         $objTypeBin = pack("C", self::$objType);
-        $cmdCodeBin = pack("C", self::$cmdCode);
+        $cmdCodeBin = pack("C", $cmdCode);
         $objIDBin = pack("n", self::$objID);
         $reservedBin = pack("n",0);
         $dataBin = pack("a16",$msgJsonObj->data->serverID);
@@ -145,10 +149,11 @@ class GateYSProtocol {
     private static function searchNewDevs($msgJsonObj, &$msgLen) {
         //0A开始
         echo "\n--- search devs ---\n";
+        $cmdCode = $msgJsonObj->cmdCode;
         $propRegion = 0x8000;
         $propRegionBin = pack("n", $propRegion);
         $objTypeBin = pack("C", self::$objType);
-        $cmdCodeBin = pack("C", self::$cmdCode);
+        $cmdCodeBin = pack("C", $cmdCode);
         $objIDBin = pack("n", self::$objID);
         $lastSecs = pack("n", $msgJsonObj->data->lastSecs);
         $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin
@@ -160,10 +165,11 @@ class GateYSProtocol {
     
     private static function listAllDevs($msgJsonObj, &$msgLen) {
         echo "\n --- list all devices ---\n";
+        $cmdCode = $msgJsonObj->cmdCode;
         $propRegion = 0x8000;
         $propRegionBin = pack("n", $propRegion);
         $objTypeBin = pack("C", self::$objType);
-        $cmdCodeBin = pack("C", self::$cmdCode);
+        $cmdCodeBin = pack("C", $cmdCode);
         $objIDBin = pack("n", self::$objID);
         $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin
             .$objIDBin;
@@ -174,11 +180,11 @@ class GateYSProtocol {
     
     public static function encodeGateMsg($msgJsonObj, &$msgLen) {
         
-        self::$cmdCode = $msgJsonObj->cmdCode;
+        $cmdCode = $msgJsonObj->cmdCode;
         $propRegion;
         $packBin;
         
-        switch (self::$cmdCode) {
+        switch ($cmdCode) {
             case self::LOGIN_LAN_GATE_CMDCODE:
                 //局域网登录
                 $packBin = self::loginLan($msgJsonObj, $msgLen);
@@ -237,9 +243,9 @@ class GateYSProtocol {
         $dataArray;
         $cmdFormat = "@13/C1cmdCode";
         $cmdArr = unpack($cmdFormat, $msgBin);
-        self::$cmdCode = $cmdArr["cmdCode"];
+        $cmdCode = $cmdArr["cmdCode"];
         
-        switch (self::$cmdCode) {
+        switch ($cmdCode) {
             case self::LOGIN_LAN_GATE_CMDCODE:
                 
                 $cmdArr = self::loginDecode($msgBin, $msgCRC);
@@ -313,12 +319,17 @@ class GateYSProtocol {
                 "h16gateID/".
                 "h12gateMAC/".
                 "a32reserved/".
-                "a16gateName/".
+                "H32gateName/".
                 "n1hbLan/".
                 "n1hbWLan/".
                 "h136netData/".
                 "n1crc";
             $cmdArr = unpack($cmdFormat, $msgBin);
+            
+            $tempGateName = $cmdArr["gateName"];
+            $tempGateName = HelperYSProtocol::decodeUnicodeStr($tempGateName);
+            $cmdArr["gateName"] = $tempGateName;
+            
             $msgCRC = $cmdArr["crc"];
             
         } else {
@@ -393,12 +404,17 @@ class GateYSProtocol {
                 "h16gateID/".
                 "h12gateMAC/".
                 "@88/".
-                "a16gateName/".
+                "H32gateName/".
                 "n1hbLan/".
                 "n1hbWLan/".
                 "a68reserved/".
                 "n1crc";
             $cmdArr = unpack($cmdFormat, $msgBin);
+            
+            $tempGateName = $cmdArr["gateName"];
+            $tempGateName = HelperYSProtocol::decodeUnicodeStr($tempGateName);
+            $cmdArr["gateName"] = $tempGateName;
+            
             $msgCRC = $cmdArr["crc"];
         } else {
             //错误
@@ -436,12 +452,17 @@ class GateYSProtocol {
                 "h16gateID2/".
                 "h12gateMAC/".
                 "@160/".
-                "A16gateName/".
+                "H32gateName/".
                 "n1hbLan/".
                 "n1hbWLan/".
                 "@216/".
                 "n1crc";
             $cmdArr = unpack($cmdFormat, $msgBin);
+            
+            $tempGateName = $cmdArr["gateName"];
+            $tempGateName = HelperYSProtocol::decodeUnicodeStr($tempGateName);
+            $cmdArr["gateName"] = $tempGateName;
+            
             $msgCRC = $cmdArr["crc"];
         } else {
             //错误
@@ -481,12 +502,16 @@ class GateYSProtocol {
                 "A8gateID2/".
                 "A6gateMAC/".
                 "@128/".
-                "A16gateName/".
+                "H32gateName/".
                 "n1hbLan/".
                 "n1hbWLan/".
                 "@216/".
                 "n1crc";
             $cmdArr = unpack($cmdFormat, $msgBin);
+            
+            $tempGateName = $cmdArr["gateName"];
+            $tempGateName = HelperYSProtocol::decodeUnicodeStr($tempGateName);
+            $cmdArr["gateName"] = $tempGateName;
             
             $msgCRC = $cmdArr["crc"];
         } else {
