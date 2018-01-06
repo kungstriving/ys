@@ -2,6 +2,9 @@
 
 class DeviceYSProtocol {
     const READ_CONFIG_GATE_CMDCODE = 192;
+    const LIST_OBJID_CMDCODE = 195;
+    
+    const DEVICE_OBJ_TYPE = 4;
     
     public static function encodeDeviceMsg($msgJsonObj, &$msgLen) {
         
@@ -44,15 +47,15 @@ class DeviceYSProtocol {
                     $msgLen = 18+0;
                 }
                 break;
+            case self::LIST_OBJID_CMDCODE:
+                $packBin = HelperYSProtocol::listAllObjIDs($msgJsonObj, $msgLen);
+                break;
         }
         
         return $packBin;
-        
     }
     
     //////////////////// 解码 ////////////////////
-    
-    
     
     public static function decodeDeviceMsg($msgBin, &$msgCRC) {
         
@@ -65,11 +68,15 @@ class DeviceYSProtocol {
             case self::READ_CONFIG_GATE_CMDCODE:
                 $cmdArr = self::readConfigDecode($msgBin, $msgCRC);
                 break;
+            case self::LIST_OBJID_CMDCODE:
+                $cmdArr = HelperYSProtocol::listAllObjIDsDecode($msgBin, $msgCRC);
+                break;
         }
         
         return array('data'=>$cmdArr);
         
     }
+    
     
     private static function readConfigDecode($msgBin, &$msgCRC) {
         echo "\n --- device config decode ---\n";
@@ -123,6 +130,17 @@ class DeviceYSProtocol {
                     }
                     
                     $cmdFormat = $cmdFormat."n1crc";
+                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    //添加分片标志
+                    $sliceT = 0x0010 & $propRegion;
+                    if ($sliceT == 0x0010) {
+                        //结尾了
+                        $cmdArr["sliceT"] = 1;
+                    } else {
+                        $cmdArr["sliceM"] = 1;
+                    }
+                    
+                    $msgCRC = $cmdArr["crc"];
                 }
                 
             } else {
@@ -186,7 +204,7 @@ class DeviceYSProtocol {
                     "h16devID/".
                     "n1parentID/".
                     "n1devType/".
-                    "a16devName/".
+                    "H32devName/".
                     "n1reserved/".
                     "C1staSeq/".
                     "C1softVer/".
@@ -194,6 +212,11 @@ class DeviceYSProtocol {
                     "n1stopClock/".
                     "n1crc";
                 $cmdArr = unpack($cmdFormat, $msgBin);
+                
+                $tempDevName = $cmdArr["devName"];
+                $tempDevName = HelperYSProtocol::decodeUnicodeStr($tempDevName);
+                $cmdArr["devName"] = $tempDevName;
+                
                 $msgCRC = $cmdArr["crc"];
             } else {
                 //错误
@@ -204,7 +227,6 @@ class DeviceYSProtocol {
                 $msgCRC = $cmdArr["crc"];
             }
             
-            $cmdArr["cmdRetCode"] = $cmdRetCode;
         }
         
         return $cmdArr;
