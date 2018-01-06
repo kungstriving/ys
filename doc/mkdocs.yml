@@ -5,6 +5,7 @@ site_author: 'Jerry.K'
 
 pages:
     - 使用帮助: index.md
+    - 配置读取命令: config.md
 
 # Configuration
 theme:
