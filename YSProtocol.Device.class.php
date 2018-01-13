@@ -4,7 +4,7 @@ class Third_Ys_Devicesdk {
     const REMOTE_CONTROL_CMDCODE = 16;
     const STATUS_UPLOAD_CMDCODE = 32;
     
-    const READ_CONFIG_GATE_CMDCODE = 192;
+    const READ_CONFIG_PROPS_CMDCODE = 192;
     const LIST_OBJID_CMDCODE = 195;
     
     const DEVICE_OBJ_TYPE = 4;
@@ -46,6 +46,7 @@ class Third_Ys_Devicesdk {
                 
                 switch ($devType) {
                     case 16:
+                    case 17:
                         //色灯
                         $subDevNum = $subCmdContent->subDevNum;
                         $powerOn = $subCmdContent->powerOn;
@@ -63,7 +64,59 @@ class Third_Ys_Devicesdk {
                         $colorBBin = pack("C", $colorB);
                         $packBin = $packBin.$subCmdFirstByteBin.$colorHBin.$colorSBin.$colorBBin;
                         break;
-                    case 17:
+                    case 32:
+                    case 33:
+                        //开关
+                    case 40:
+                    case 41:
+                        //插座
+                    case 72:
+                        //开关窗控制器
+                    case 80:
+                        //阀门机械臂
+                        $subDevNum = $subCmdContent->subDevNum;
+                        $powerOn = $subCmdContent->powerOn;
+                        
+                        $subDevNumTemp = $subDevNum<<4; //保留高四位
+                        $powerOnTemp = $powerOn & 0x0f; //保留低四位
+                        $subCmdFirstByte = $subDevNumTemp | $powerOnTemp;
+                        
+                        $subCmdFirstByteBin = pack("C", $subCmdFirstByte);
+                        $controlB1 = pack("C", 0);  //保留
+                        $controlB2 = pack("C", 0);
+                        $controlB3 = pack("C", 0);
+                        $packBin = $packBin.$subCmdFirstByteBin.$controlB1.$controlB2.$controlB3;
+                        
+                        break;
+                    case 48:
+                        //遥控器
+                    case 52:
+                        //开关贴
+                        $subDevNum = $subCmdContent->subDevNum;
+                        $subCmdCode = $subCmdContent->binding;
+                        if ($subCmdCode == 1) {
+                            //绑定
+                            $subCmdCode = 3;
+                        }else if ($subCmdCode == 0) {
+                            //解绑定
+                            $subCmdCode = 2;
+                        }
+                        $targetID = $subCmdContent->targetID;
+                        $targetSubNum = $subCmdContent->targetSubNum;
+                        
+                        $subDevNumTemp = $subDevNum<<4; //保留高四位
+                        $subCmdCodeTemp = $subCmdCode & 0x0f; //保留低四位
+                        $subCmdFirstByte = $subDevNumTemp | $subCmdCodeTemp;
+                        
+                        $targetSubNumTemp = $targetSubNum<<4;
+                        $subCmdSecByte = $targetSubNumTemp | 0x04;
+                        
+                        $subCmdFirstByteBin = pack("C", $subCmdFirstByte);
+                        $subCmdSecByteBin = pack("C", $subCmdSecByte);
+                        $targetIDBin = pack("n", $targetID);
+                        
+                        $packBin = $packBin.$subCmdFirstByteBin.$subCmdSecByteBin.$targetIDBin;
+                        
                         break;
                 }
                 
@@ -86,8 +139,8 @@ class Third_Ys_Devicesdk {
                 //遥控
                 $packBin = self::remoteControl($msgJsonObj, $msgLen);
                 break;
-            case self::READ_CONFIG_GATE_CMDCODE:
-                echo "\n --- read config ---\n";
+            case self::READ_CONFIG_PROPS_CMDCODE:
+                echo "\n --- read devices config ---\n";
                 $cmdCode = $msgJsonObj->cmdCode;
                 $objType = $msgJsonObj->objType;
                 $objID = $msgJsonObj->objID;
@@ -144,7 +197,7 @@ class Third_Ys_Devicesdk {
             case self::STATUS_UPLOAD_CMDCODE:
                 $cmdArr = self::statusUploadDecode($msgBin, $msgCRC);
                 break;
-            case self::READ_CONFIG_GATE_CMDCODE:
+            case self::READ_CONFIG_PROPS_CMDCODE:
                 $cmdArr = self::readConfigDecode($msgBin, $msgCRC);
                 break;
             case self::LIST_OBJID_CMDCODE:
@@ -184,6 +237,7 @@ class Third_Ys_Devicesdk {
                 $devSubCmdObj = array();
                 switch ($devType) {
                     case 16:
+                    case 17:
                         //色灯
                         $cmdFormatTemp = "@".$offset."/CdevSeqSubCmd/CcolorH/CcolorS/CcolorB";
                         $cmdArrTemp = unpack($cmdFormatTemp, $msgBin);
@@ -191,10 +245,30 @@ class Third_Ys_Devicesdk {
                         $subDevNum = $devSeqSubCmd >> 4;
                         $subCmd = $devSeqSubCmd & 0x0f;
                         
+                        $devSubCmdObj["subDevNum"] = $subDevNum;
                         $devSubCmdObj["powerOn"] = $subCmd;
                         $devSubCmdObj["colorH"] = $cmdArrTemp["colorH"];
                         $devSubCmdObj["colorS"] = $cmdArrTemp["colorS"];
                         $devSubCmdObj["colorB"] = $cmdArrTemp["colorB"];
+                        break;
+                    case 32:
+                    case 33:
+                        //单火线、零火线触摸开关
+                    case 40:
+                    case 41:
+                        //插座
+                    case 72:
+                        //开关窗控制器
+                    case 80:
+                        //阀门机械臂
+                        $cmdFormatTemp = "@".$offset."/CdevSeqSubCmd/CcontrolB1/CcontrolB2/CcontrolB3";
+                        $cmdArrTemp = unpack($cmdFormatTemp, $msgBin);
+                        $devSeqSubCmd = $cmdArrTemp["devSeqSubCmd"];
+                        $subDevNum = $devSeqSubCmd >> 4;    //子设备号 0=所有灯 1-3=1-3灯
+                        $subCmd = $devSeqSubCmd & 0x0f;     //0=关闭 1=开启
+                        
+                        $devSubCmdObj["subDevNum"] = $subDevNum;
+                        $devSubCmdObj["powerOn"] = $subCmd;
                         break;
                 }
                 
@@ -228,10 +302,10 @@ class Third_Ys_Devicesdk {
     }
     
     private static function readConfigDecode($msgBin, &$msgCRC) {
-        echo "\n --- device config decode ---\n";
+        echo "\n --- device read config decode ---\n";
         //读取设备配置信息
         
-        //根据单个或所有来区分
+        //根据单个或同类所有设备来区分
         $cmdFormat = "@14/n1objID";
         $cmdArr = unpack($cmdFormat, $msgBin);
         $objID = $cmdArr["objID"];
@@ -262,24 +336,39 @@ class Third_Ys_Devicesdk {
                     $msgCRC = $cmdArr["crc"];
                 } else {
                     //正确
-                    $cmdFormat = "@18/n1objNum";
-                    $cmdArr = unpack($cmdFormat, $msgBin);
-                    $objNum = $cmdArr["objNum"];
-                    
                     $cmdFormat = "@16/n1sliceID/".
                         "n1objNum/";
+                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    $objNum = $cmdArr["objNum"];
+                    $sliceID = $cmdArr["sliceID"];
                     
+                    $dataObjArr = array();
+                    $offset = 20;
                     for ($i = 0; $i < $objNum; $i++) {
-                        $cmdFormat = $cmdFormat."C1dataObj".$i."Type/C1dataObj".$i."reserved/n1dataObj".$i."ID/n1dataObj".$i."FixLen/n1dataObj".$i."ExtLen/";
-                        $cmdArr = unpack($cmdFormat, $msgBin);
-                        $objFixLen = $cmdArr["dataObj".$i."FixLen"];
-                        $objExtLen = $cmdArr["dataObj".$i."ExtLen"];
-                        $cmdFormat = $cmdFormat."h".($objFixLen*2)."dataObj".$i."Fix/";
-                        $cmdFormat = $cmdFormat."h".($objExtLen*2)."dataObj".$i."Ext/";
+                        $dataObj = array();
+                        
+                        $cmdFormatTemp = "@".$offset."/C1dataObjType/C1reserved/n1dataObjID/n1dataObjFixLen/n1dataObjExtLen";
+                        $cmdArrTemp = unpack($cmdFormatTemp, $msgBin);
+                        $dataObjType = $cmdArrTemp["dataObjType"];
+                        $dataObj["objType"] = $dataObjType;
+                        $dataObj["objID"] = $cmdArrTemp["dataObjID"];
+                        $fixLen = $cmdArrTemp["dataObjFixLen"];
+                        $extLen = $cmdArrTemp["dataObjExtLen"];
+                        
+                        $dataObj["objContent"] = Third_Ys_Helpersdk::decodeObjConfigProps($msgBin, $offset, $dataObjType);
+                        
+                        $dataObjArr[] = $dataObj;
+                        $offset = $offset + 8 + $fixLen + $extLen;
                     }
                     
-                    $cmdFormat = $cmdFormat."n1crc";
-                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    $cmdFormat = "@".$offset."/n1crc";
+                    $cmdArrTemp = unpack($cmdFormat, $msgBin);
+                    
+                    $cmdArr["objNum"] = $objNum;
+                    $cmdArr["sliceID"] = $sliceID;
+                    $cmdArr["dataObjArr"] = $dataObjArr;
+                    $cmdArr["crc"] = $cmdArrTemp["crc"];
+                    
                     //添加分片标志
                     $sliceT = 0x0010 & $propRegion;
                     if ($sliceT == 0x0010) {
@@ -303,25 +392,42 @@ class Third_Ys_Devicesdk {
                 
                 if ($cmdRetCode == 0) {
                     //正确
-                    $cmdFormat = "@18/n1objNum";
-                    $cmdArr = unpack($cmdFormat, $msgBin);
-                    $objNum = $cmdArr["objNum"];
-                    
                     $cmdFormat = "@16/n1cmdRetCode/".
                         "n1objNum/";
+                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    $objNum = $cmdArr["objNum"];
+                    $cmdRetCode = $cmdArr["cmdRetCode"];
+                    
+                    $dataObjArr = array();
+                    $offset = 20;
                     
                     for ($i = 0; $i < $objNum; $i++) {
-                        $cmdFormat = $cmdFormat."C1dataObj".$i."Type/C1dataObj".$i."reserved/n1dataObj".$i."ID/n1dataObj".$i."FixLen/n1dataObj".$i."ExtLen/";
-                        $cmdArr = unpack($cmdFormat, $msgBin);
-                        $objFixLen = $cmdArr["dataObj".$i."FixLen"];
-                        $objExtLen = $cmdArr["dataObj".$i."ExtLen"];
-                        $cmdFormat = $cmdFormat."h".($objFixLen*2)."dataObj".$i."Fix/";
-                        $cmdFormat = $cmdFormat."h".($objExtLen*2)."dataObj".$i."Ext/";
+                        
+                        $dataObj = array();
+                        
+                        $cmdFormatTemp = "@".$offset."/C1dataObjType/C1reserved/n1dataObjID/n1dataObjFixLen/n1dataObjExtLen";
+                        $cmdArrTemp = unpack($cmdFormatTemp, $msgBin);
+                        $dataObjType = $cmdArrTemp["dataObjType"];
+                        $dataObj["objType"] = $dataObjType;
+                        $dataObj["objID"] = $cmdArrTemp["dataObjID"];
+                        $fixLen = $cmdArrTemp["dataObjFixLen"];
+                        $extLen = $cmdArrTemp["dataObjExtLen"];
+                        $offset = $offset + 8;
+                        $dataObj["objContent"] = Third_Ys_Helpersdk::decodeObjConfigProps($msgBin, $offset, $dataObjType);
+                        $dataObjArr[] = $dataObj;
+                        $offset = $offset + $fixLen + $extLen;
+                        
                     }
                     
-                    $cmdFormat = $cmdFormat."n1crc";
+                    $cmdFormat = "@".$offset."/n1crc";
                     
-                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    $cmdArrTemp = unpack($cmdFormat, $msgBin);
+                    
+                    $cmdArr["objNum"] = $objNum;
+                    $cmdArr["cmdRetCode"] = $cmdRetCode;
+                    $cmdArr["dataObjArr"] = $dataObjArr;
+                    $cmdArr["crc"] = $cmdArrTemp["crc"];
+                    
                     $msgCRC = $cmdArr["crc"];
                 } else {
                     $cmdFormat = "@16/".
