@@ -91,6 +91,7 @@ class Third_Ys_Sdk {
                 break;
             case Third_Ys_Sdk::ALL_TYPE:
                 //所有类型
+                //所有类型的读取应该放在网关类，或者CONFIG类中完成
                 $dataBin = Third_Ys_Devicesdk::encodeDeviceMsg($msgJsonObj, $msgLen);
                 break;
             default:
