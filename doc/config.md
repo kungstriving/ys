@@ -211,7 +211,7 @@ data数据域定义：
 
 **返回消息格式示例**：
 
-> 注：1. 如果返回的数据域中携带sliceM=1,则说明需要进行分片发送，那么需要再次发送读取指令，同时在发送指令中增加sliceSeq=X，其中X为分片序号从1开始，每次递增。后续每次发送需要检测该属性。
+> 注：1. 如果返回的数据域中携带sliceM=1,则说明需要进行分片发送，那么需要在**10秒**内再次发送读取指令，同时在发送指令中增加sliceSeq=X，其中X为分片序号从1开始，每次递增。
 
 > 2.如果返回的消息中携带sliceT = 1, 则说明分片数据已经结束，则不再需要发送分片读取指令。
 
@@ -219,62 +219,168 @@ data数据域定义：
 *正确情况*
 
 	$testConfigReadAllDevResponse = '{
-		"msgLen":166,
-    	"sign":50210,
-    	"msgID":108,
-    	"objType":4,
-    	"cmdCode":192,
-    	"objID":65535,
-		"crc":45777,
-    	"data":{
-			"cmdRetCode":0,
-    	    "objNum":3,
-    	    "dataObj0Type":4,
-    	    "dataObj0Reserved":0,
-			"dataObj0ID":57244,
-			"dataObj0FixLen":36,
-			"dataObj0ExtLen":4,
-			"dataObj0Fix":"00d0f600d013f7d50000011007f600030013000000000000000000000000001000000000",
-			"dataObj0Ext":"0e000000",
-			"dataObj1Type":4,
-    	    "dataObj1Reserved":0,
-			"dataObj1ID":2861,
-			"dataObj1FixLen":36,
-			"dataObj1ExtLen":4,
-			"dataObj1Fix":"00d0f600d013d4ef0000011007f600030023000000000000000000000000101000000000",
-			"dataObj1Ext":"0e000000",
-			"dataObj2Type":4,
-    	    "dataObj2Reserved":0,
-			"dataObj2ID":36258,
-			"dataObj2FixLen":36,
-			"dataObj2ExtLen":4,
-			"dataObj2Fix":"00d0f600d013f5150000011007f600030033000000000000000000000000201000000000",
-			"dataObj2Ext":"0e020000",
-			"sliceM":1,
-			"sliceT":1,
-			"crc":45777
-    	}
+	  "msgLen": 374,
+	  "sign": 50210,
+	  "msgID": 108,
+	  "objType": 4,
+	  "cmdCode": 192,
+	  "objID": 65535,
+	  "crc": 360,
+	  "data": {
+	    "cmdRetCode": 0,
+	    "objNum": 7,
+	    "dataObjArr": [
+	      {
+	        "objType": 4,
+	        "objID": 57244,
+	        "objContent": {
+	          "devMac": "00d0f600d013f7d5",
+	          "parentID": 0,
+	          "devType": 16,
+	          "devNum": 1,
+	          "devName": "灯01",
+	          "devSeq": 0,
+	          "protoVer": 0,
+	          "devSignGroup": 57344,
+	          "subCmdNum": 0,
+	          "subCmdArr": [
+	            
+	          ]
+	        }
+	      },
+	      {
+	        "objType": 4,
+	        "objID": 56204,
+	        "objContent": {
+	          "devMac": "00d0f600d01349df",
+	          "parentID": 0,
+	          "devType": 52,
+	          "devNum": 3,
+	          "devName": "灯控贴01",
+	          "devSeq": 0,
+	          "protoVer": 0,
+	          "devSignGroup": 57424,
+	          "subCmdNum": 1,
+	          "subCmdArr": [
+	            {
+	              "subDevNum": 1,
+	              "binding": 1,
+	              "targetDevSubNum": 0,
+	              "targetDevType": 4,
+	              "targetObjID": 57244
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "objType": 4,
+	        "objID": 23799,
+	        "objContent": {
+	          "devMac": "00d0f600307bb6bc",
+	          "parentID": 0,
+	          "devType": 48,
+	          "devNum": 3,
+	          "devName": "灯遥控01",
+	          "devSeq": 0,
+	          "protoVer": 0,
+	          "devSignGroup": 57440,
+	          "subCmdNum": 3,
+	          "subCmdArr": [
+	            {
+	              "subDevNum": 1,
+	              "binding": 1,
+	              "targetDevSubNum": 0,
+	              "targetDevType": 4,
+	              "targetObjID": 2861
+	            },
+	            {
+	              "subDevNum": 2,
+	              "binding": 1,
+	              "targetDevSubNum": 0,
+	              "targetDevType": 4,
+	              "targetObjID": 36258
+	            },
+	            {
+	              "subDevNum": 3,
+	              "binding": 1,
+	              "targetDevSubNum": 2,
+	              "targetDevType": 4,
+	              "targetObjID": 45539
+	            }
+	          ]
+	        }
+	      }
+	    ],
+	    "crc": 360
+	  }
 	}';
 
 data数据域定义：
 
+>sliceM: 还需要进行分片处理，不一定每次都有该属性，如果后续没有分片数据，则没有该属性。
+
+>sliceID: 此次接收到数据的分片ID，不一定每次都有该属性，如果不是分片发送的数据，则没有该属性。
+
 >objNum: 此次返回的终端数量
 
->dataObj0Type：设备0类型
+>dataObjArr：所有对象数组
 
->dataObj0ID：设备0 ID
+>dataObjArr->objType: 对象类型，参考使用帮助中的类型定义
 
->dataObj0FixLen:设备0的固定域长度
+>dataObjArr->objID：对象ID
 
->dataObj0ExtLen:设备0的扩展域长度
+>dataObjArr->objContent：该对象的属性信息对象。注意objContent中的内容会根据objType的不同而不同。
 
->dataObj0Fix: 设备0的固定域内容
+>**以下是终端对象的定义**
 
->dataObj0Ext: 设备0的扩展域内容
+>dataObjArr->objContent->devMac:该设备的唯一标识
 
->sliceM: 1 说明需要进行分片读取
+>dataObjArr->objContent->parentID: 该设备的父ID
 
->sliceT: 1 说明分片数据已经结束，不需要再进行分片读取操作。在正常的操作流程中，sliceM和sliceT不会同时出现。
+>dataObjArr->objContent->devType: 该设备的设备类型，请参阅使用帮助章节。
+
+>dataObjArr->objContent->devNum: 该设备的设备号
+
+>dataObjArr->objContent->devSeq: 该设备的站点序号
+
+>dataObjArr->objContent->protoVer: 该设备的软件版本
+
+>dataObjArr->objContent->devSignGroup: 该设备的设备特征组
+
+>dataObjArr->objContent->subCmdNum: 该设备的子命令数目
+
+>dataObjArr->objContent->subCmdArr: 该设备的子命令数组，注：子命令数组中的内容，根据设备类型的不同会有所不同。
+
+>**以下是终端对象-灯、灯带设备的子命令定义**
+
+>dataObjArr->objContent->subCmdArr->subDevNum: 该灯设备的设备号
+
+>dataObjArr->objContent->subCmdArr->powerOn: 该灯的开启状态 1=开启 0=关闭
+
+>dataObjArr->objContent->subCmdArr->colorH/S/B: 该灯的HSB颜色
 
 
+>**以下是终端对象-开关、插座、开关窗控制器、阀门机械臂设备的子命令定义**
 
+>dataObjArr->objContent->subCmdArr->subDevNum: 该设备的设备号
+
+>dataObjArr->objContent->subCmdArr->powerOn: 该设备的开启状态 1=开启 0=关闭
+
+>**以下是终端对象-开关、插座、开关窗控制器、阀门机械臂设备的子命令定义**
+
+>dataObjArr->objContent->subCmdArr->subDevNum: 该设备的设备号
+
+>dataObjArr->objContent->subCmdArr->powerOn: 该设备的开启状态 1=开启 0=关闭
+
+
+>**以下是终端对象-灯遥控器、开关贴设备的子命令定义**
+
+>dataObjArr->objContent->subCmdArr->subDevNum: 该设备的设备号
+
+>dataObjArr->objContent->subCmdArr->binding: 该设备的绑定状态 1=绑定 0=未绑定
+
+>dataObjArr->objContent->subCmdArr->targetDevSubNum: 该设备所绑定的目标设备的设备号
+
+>dataObjArr->objContent->subCmdArr->targetDevType: 该设备所绑定的目标设备的设备类型
+
+>dataObjArr->objContent->subCmdArr->targetObjID: 该设备所绑定的目标设备的设备ID
