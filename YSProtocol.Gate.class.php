@@ -1,7 +1,7 @@
 <?php
 
 
-class GateYSProtocol {
+class Third_Ys_Gatesdk {
     
     //命令码
     //网关命令码
@@ -11,9 +11,10 @@ class GateYSProtocol {
     const HEARTBEAT_GATE_CMDCODE = 4;
     const SERVER_IDENTIFY_GATE_CMDCODE = 5;
     const SERVER_HEARTBEAT_GATE_CMDCODE = 6;//服务器心跳
+    const ALLOW_APP_FIRST_LOGIN_CMDCODE = 7;//手机首次登录指示
     const SEARCH_NEW_DEVS_GATE_CMDCODE = 10;
     const LIST_ALL_DEVS_GATE_CMDCODE = 11;
-    const READ_CONFIG_GATE_CMDCODE = 192;
+    const READ_CONFIG_PROPS_CMDCODE = 192;
     
     private static $objType = 0;
     private static $objID = 0;
@@ -213,7 +214,7 @@ class GateYSProtocol {
             case self::LIST_ALL_DEVS_GATE_CMDCODE:
                 $packBin = self::listAllDevs($msgJsonObj, $msgLen);
                 break;
-            case self::READ_CONFIG_GATE_CMDCODE:
+            case self::READ_CONFIG_PROPS_CMDCODE:
                 echo "\n --- read config ---\n";
                 $cmdCode = $msgJsonObj->cmdCode;
                 $objType = $msgJsonObj->objType;
@@ -278,6 +279,10 @@ class GateYSProtocol {
                 $cmdArr = unpack($cmdFormat, $msgBin);
                 $msgCRC = $cmdArr["crc"];
                 break;
+            case self::ALLOW_APP_FIRST_LOGIN_CMDCODE:
+                //网关允许手机首次登录
+                $cmdArr = self::allowAppLogin($msgBin, $msgCRC);
+                break;
             case self::SEARCH_NEW_DEVS_GATE_CMDCODE:
                 //搜索新设备的回应
                 echo "\n --- search new devs decode ---\n";
@@ -288,13 +293,22 @@ class GateYSProtocol {
             case self::LIST_ALL_DEVS_GATE_CMDCODE:
                 $cmdArr = self::listAllDevsDecode($msgBin, $msgCRC);
                 break;
-            case self::READ_CONFIG_GATE_CMDCODE:
+            case self::READ_CONFIG_PROPS_CMDCODE:
                 $cmdArr = self::readConfigDecode($msgBin, $msgCRC);
                 break;
         }
         
         return array('data'=>$cmdArr);
         
+    }
+    
+    private static function allowAppLogin($msgBin, &$msgCRC) {
+        echo "\n --- allow app firstly login ---\n";
+        //允许手机首次登录
+        $cmdFormat="@16/n1crc";
+        $cmdArr = unpack($cmdFormat, $msgBin);
+        $msgCRC = $cmdArr["crc"];
+        return $cmdArr;
     }
     
     private static function readConfigDecode($msgBin, &$msgCRC) {
@@ -327,7 +341,7 @@ class GateYSProtocol {
             $cmdArr = unpack($cmdFormat, $msgBin);
             
             $tempGateName = $cmdArr["gateName"];
-            $tempGateName = HelperYSProtocol::decodeUnicodeStr($tempGateName);
+            $tempGateName = Third_Ys_Helpersdk::decodeUnicodeStr($tempGateName);
             $cmdArr["gateName"] = $tempGateName;
             
             $msgCRC = $cmdArr["crc"];
@@ -361,7 +375,7 @@ class GateYSProtocol {
             $cmdFormat = "@20/";
             
             for ($i = 0; $i < $devNum; $i++) {
-                $cmdFormat = $cmdFormat."n1dev".$i."ID/n1dev".$i."Type/h16dev".$i."MAC/";
+                $cmdFormat = $cmdFormat."n1dev".$i."ID/C1dev".$i."Type/C1dev".$i."Reserved/h16dev".$i."MAC/";
             }
             
             $cmdFormat = $cmdFormat."n1crc";
@@ -412,7 +426,7 @@ class GateYSProtocol {
             $cmdArr = unpack($cmdFormat, $msgBin);
             
             $tempGateName = $cmdArr["gateName"];
-            $tempGateName = HelperYSProtocol::decodeUnicodeStr($tempGateName);
+            $tempGateName = Third_Ys_Helpersdk::decodeUnicodeStr($tempGateName);
             $cmdArr["gateName"] = $tempGateName;
             
             $msgCRC = $cmdArr["crc"];
@@ -460,7 +474,7 @@ class GateYSProtocol {
             $cmdArr = unpack($cmdFormat, $msgBin);
             
             $tempGateName = $cmdArr["gateName"];
-            $tempGateName = HelperYSProtocol::decodeUnicodeStr($tempGateName);
+            $tempGateName = Third_Ys_Helpersdk::decodeUnicodeStr($tempGateName);
             $cmdArr["gateName"] = $tempGateName;
             
             $msgCRC = $cmdArr["crc"];
@@ -510,7 +524,7 @@ class GateYSProtocol {
             $cmdArr = unpack($cmdFormat, $msgBin);
             
             $tempGateName = $cmdArr["gateName"];
-            $tempGateName = HelperYSProtocol::decodeUnicodeStr($tempGateName);
+            $tempGateName = Third_Ys_Helpersdk::decodeUnicodeStr($tempGateName);
             $cmdArr["gateName"] = $tempGateName;
             
             $msgCRC = $cmdArr["crc"];
