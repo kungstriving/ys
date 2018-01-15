@@ -11,6 +11,96 @@ class Third_Ys_Devicesdk {
     
     ////////////////////// 编码 ////////////////////////////////
     
+    public static function encodeSubCmdArr($subCmdArr) {
+        
+        $subCmdNum = count($subCmdArr);
+        $packBin = "";
+        for ($i=0; $i < $subCmdNum; $i++) {
+            $subCmdContent = $subCmdArr[$i];
+            //根据子命令的终端类型进行分类操作
+            $devType = $subCmdContent->devType;
+            
+            switch ($devType) {
+                case 16:
+                case 17:
+                    //色灯
+                    $subDevNum = $subCmdContent->subDevNum;
+                    $powerOn = $subCmdContent->powerOn;
+                    $colorH = $subCmdContent->colorH;
+                    $colorS = $subCmdContent->colorS;
+                    $colorB = $subCmdContent->colorB;
+                    
+                    $subDevNumTemp = $subDevNum<<4; //保留高四位
+                    $powerOnTemp = $powerOn & 0x0f; //保留低四位
+                    $subCmdFirstByte = $subDevNumTemp | $powerOnTemp;
+                    
+                    $subCmdFirstByteBin = pack("C", $subCmdFirstByte);
+                    $colorHBin = pack("C", $colorH);
+                    $colorSBin = pack("C", $colorS);
+                    $colorBBin = pack("C", $colorB);
+                    $packBin = $packBin.$subCmdFirstByteBin.$colorHBin.$colorSBin.$colorBBin;
+                    break;
+                case 32:
+                case 33:
+                    //开关
+                case 40:
+                case 41:
+                    //插座
+                case 72:
+                    //开关窗控制器
+                case 80:
+                    //阀门机械臂
+                    $subDevNum = $subCmdContent->subDevNum;
+                    $powerOn = $subCmdContent->powerOn;
+                    
+                    $subDevNumTemp = $subDevNum<<4; //保留高四位
+                    $powerOnTemp = $powerOn & 0x0f; //保留低四位
+                    $subCmdFirstByte = $subDevNumTemp | $powerOnTemp;
+                    
+                    $subCmdFirstByteBin = pack("C", $subCmdFirstByte);
+                    $controlB1 = pack("C", 0);  //保留
+                    $controlB2 = pack("C", 0);
+                    $controlB3 = pack("C", 0);
+                    $packBin = $packBin.$subCmdFirstByteBin.$controlB1.$controlB2.$controlB3;
+                    
+                    break;
+                case 48:
+                    //遥控器
+                case 52:
+                    //开关贴
+                    $subDevNum = $subCmdContent->subDevNum;
+                    $subCmdCode = $subCmdContent->binding;
+                    if ($subCmdCode == 1) {
+                        //绑定
+                        $subCmdCode = 3;
+                    }else if ($subCmdCode == 0) {
+                        //解绑定
+                        $subCmdCode = 2;
+                    }
+                    $targetID = $subCmdContent->targetID;
+                    $targetSubNum = $subCmdContent->targetSubNum;
+                    
+                    $subDevNumTemp = $subDevNum<<4; //保留高四位
+                    $subCmdCodeTemp = $subCmdCode & 0x0f; //保留低四位
+                    $subCmdFirstByte = $subDevNumTemp | $subCmdCodeTemp;
+                    
+                    $targetSubNumTemp = $targetSubNum<<4;
+                    $subCmdSecByte = $targetSubNumTemp | 0x04;
+                    
+                    $subCmdFirstByteBin = pack("C", $subCmdFirstByte);
+                    $subCmdSecByteBin = pack("C", $subCmdSecByte);
+                    $targetIDBin = pack("n", $targetID);
+                    
+                    $packBin = $packBin.$subCmdFirstByteBin.$subCmdSecByteBin.$targetIDBin;
+                    
+                    break;
+            }
+            
+        }
+        
+        return $packBin;
+    }
+    
     private static function remoteControl($msgJsonObj, &$msgLen) {
         echo "\n --- device remote control \n";
         $cmdCode = $msgJsonObj->cmdCode;
@@ -39,88 +129,7 @@ class Third_Ys_Devicesdk {
             $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin.$objIDBin.$reserved2B
                 .$subCmdNumBin;
             
-            for ($i=0; $i < $subCmdNum; $i++) {
-                $subCmdContent = $subCmdArr[$i];
-                //根据子命令的终端类型进行分类操作
-                $devType = $subCmdContent->devType;
-                
-                switch ($devType) {
-                    case 16:
-                    case 17:
-                        //色灯
-                        $subDevNum = $subCmdContent->subDevNum;
-                        $powerOn = $subCmdContent->powerOn;
-                        $colorH = $subCmdContent->colorH;
-                        $colorS = $subCmdContent->colorS;
-                        $colorB = $subCmdContent->colorB;
-                        
-                        $subDevNumTemp = $subDevNum<<4; //保留高四位
-                        $powerOnTemp = $powerOn & 0x0f; //保留低四位
-                        $subCmdFirstByte = $subDevNumTemp | $powerOnTemp;
-                        
-                        $subCmdFirstByteBin = pack("C", $subCmdFirstByte);
-                        $colorHBin = pack("C", $colorH);
-                        $colorSBin = pack("C", $colorS);
-                        $colorBBin = pack("C", $colorB);
-                        $packBin = $packBin.$subCmdFirstByteBin.$colorHBin.$colorSBin.$colorBBin;
-                        break;
-                    case 32:
-                    case 33:
-                        //开关
-                    case 40:
-                    case 41:
-                        //插座
-                    case 72:
-                        //开关窗控制器
-                    case 80:
-                        //阀门机械臂
-                        $subDevNum = $subCmdContent->subDevNum;
-                        $powerOn = $subCmdContent->powerOn;
-                        
-                        $subDevNumTemp = $subDevNum<<4; //保留高四位
-                        $powerOnTemp = $powerOn & 0x0f; //保留低四位
-                        $subCmdFirstByte = $subDevNumTemp | $powerOnTemp;
-                        
-                        $subCmdFirstByteBin = pack("C", $subCmdFirstByte);
-                        $controlB1 = pack("C", 0);  //保留
-                        $controlB2 = pack("C", 0);
-                        $controlB3 = pack("C", 0);
-                        $packBin = $packBin.$subCmdFirstByteBin.$controlB1.$controlB2.$controlB3;
-                        
-                        break;
-                    case 48:
-                        //遥控器
-                    case 52:
-                        //开关贴
-                        $subDevNum = $subCmdContent->subDevNum;
-                        $subCmdCode = $subCmdContent->binding;
-                        if ($subCmdCode == 1) {
-                            //绑定
-                            $subCmdCode = 3;
-                        }else if ($subCmdCode == 0) {
-                            //解绑定
-                            $subCmdCode = 2;
-                        }
-                        $targetID = $subCmdContent->targetID;
-                        $targetSubNum = $subCmdContent->targetSubNum;
-                        
-                        $subDevNumTemp = $subDevNum<<4; //保留高四位
-                        $subCmdCodeTemp = $subCmdCode & 0x0f; //保留低四位
-                        $subCmdFirstByte = $subDevNumTemp | $subCmdCodeTemp;
-                        
-                        $targetSubNumTemp = $targetSubNum<<4;
-                        $subCmdSecByte = $targetSubNumTemp | 0x04;
-                        
-                        $subCmdFirstByteBin = pack("C", $subCmdFirstByte);
-                        $subCmdSecByteBin = pack("C", $subCmdSecByte);
-                        $targetIDBin = pack("n", $targetID);
-                        
-                        $packBin = $packBin.$subCmdFirstByteBin.$subCmdSecByteBin.$targetIDBin;
-                        
-                        break;
-                }
-                
-            }
+            $packBin .= self::encodeSubCmdArr($subCmdArr);
             
             $msgLen = 18+4+4*$subCmdNum;
         }
@@ -270,6 +279,145 @@ class Third_Ys_Devicesdk {
                         $devSubCmdObj["subDevNum"] = $subDevNum;
                         $devSubCmdObj["powerOn"] = $subCmd;
                         break;
+                    case 96:
+                        //门磁
+                    case 97:
+                        //红外
+                    case 98:
+                        //煤气
+                        
+                        $cmdFormatTemp = "@".$offset."/CdevSeqSubCmd/CcontrolB1/CcontrolB2/CcontrolB3";
+                        $cmdArrTemp = unpack($cmdFormatTemp, $msgBin);
+                        $devSeqSubCmd = $cmdArrTemp["devSeqSubCmd"];
+                        $subDevNum = $devSeqSubCmd >> 4;    //子设备号 为1
+                        $subCmd = $devSeqSubCmd & 0x0f;     //子命令码 工作模式  1=直接设置 2=解绑定 3=绑定 4=关闭 5=开启
+                        
+                        switch ($subCmd) {
+                            case 1:
+                                //工作模式
+                                $controlB1 = $cmdArrTemp["controlB1"];
+                                $securityReport = $controlB1 & 0x01;
+                                $realReport = ($controlB1 & 0x02) >> 1;
+                                $nightMode = ($controlB1 & 0x04) >> 2;
+                                
+                                $devSubCmdObj["subDevNum"] = $subDevNum;
+                                $devSubCmdObj["subCmd"] = $subCmd;
+                                $devSubCmdObj["securityReport"] = $securityReport;//1=该模式启用 0=未启用
+                                $devSubCmdObj["realReport"] = $realReport;//实时通知模式 1=该模式启用 0=未启用
+                                $devSubCmdObj["nightMode"] = $nightMode;//夜灯模式1=该模式启用 0=未启用
+                                
+                                //告警FLAGS
+                                $controlB3 = $cmdArrTemp["controlB3"];
+                                $lost = $controlB3 & 0x01;  //失联
+                                $alarm1 = $controlB3 & 0x02;
+                                
+                                $devSubCmdObj["lost"] = $lost;  //失联 1=发生 0=未发生
+                                $devSubCmdObj["alarm1"] = $alarm1;  //报警1 1=发生 0=未发生
+                                
+                                break;
+                            case 2:
+                                //解绑定
+                                $binding = 0;   //解绑定
+                                $controlB1 = $cmdArrTemp["controlB1"];
+                                $targetDevSubNum = $controlB1 >> 4;
+                                $targetDevType = $controlB1 & 0x0f;
+                                
+                                $devSubCmdObj["subDevNum"] = $subDevNum;
+                                $devSubCmdObj["binding"] = $binding;
+                                $devSubCmdObj["targetDevSubNum"] = $targetDevSubNum;
+                                $devSubCmdObj["targetDevType"] = $targetDevType;
+                                
+                                $cmdFormat = "@".$offset."/CdevSeqSubCmd/CcontrolB1/n1controlB23";
+                                $cmdArrTemp = unpack($cmdFormat, $msgBin);
+                                
+                                $devSubCmdObj["targetObjID"] = $cmdArrTemp["controlB23"];
+                                break;
+                            case 3:
+                                //绑定
+                                $binding = 1;   //绑定
+                                $controlB1 = $cmdArrTemp["controlB1"];
+                                $targetDevSubNum = $controlB1 >> 4;
+                                $targetDevType = $controlB1 & 0x0f;
+                                
+                                $devSubCmdObj["subDevNum"] = $subDevNum;
+                                $devSubCmdObj["binding"] = $binding;
+                                $devSubCmdObj["targetDevSubNum"] = $targetDevSubNum;
+                                $devSubCmdObj["targetDevType"] = $targetDevType;
+                                
+                                $cmdFormat = "@".$offset."/CdevSeqSubCmd/CcontrolB1/n1controlB23";
+                                $cmdArrTemp = unpack($cmdFormat, $msgBin);
+                                
+                                $devSubCmdObj["targetObjID"] = $cmdArrTemp["controlB23"];
+                                break;
+                        }
+                        break;
+                    case 129:
+                        //流明监测
+                        $cmdFormatTemp = "@".$offset."/CdevSeqSubCmd/CcontrolB1/n1controlB23";
+                        $cmdArrTemp = unpack($cmdFormatTemp, $msgBin);
+                        $devSeqSubCmd = $cmdArrTemp["devSeqSubCmd"];
+                        $subDevNum = $devSeqSubCmd >> 4;    //子设备号 为1
+                        $subCmd = $devSeqSubCmd & 0x0f;     //1=流明上报 2=解绑定 3=绑定
+                        
+                        $devSubCmdObj["subDevNum"] = $subDevNum;
+                        
+                        if ($subCmd == 1) {
+                            //流明上报
+                            $devSubCmdObj["lumenReport"] = 1;//流明上报
+                            $devSubCmdObj["lumens"] = $cmdArrTemp["controlB23"];
+                        } else {
+                            if ($subCmd == 2) {
+                                //解绑定
+                                $devSubCmdObj["binding"] = 0;//解绑定
+                            } else if ($subCmd == 3) {
+                                //绑定
+                                $devSubCmdObj["binding"] = 1;//绑定
+                            }
+                            $controlB1 = $cmdArrTemp["controlB1"];
+                            $targetDevSubNum = $controlB1 >> 4;
+                            $targetDevType = $controlB1 & 0x0f;
+                            
+                            $devSubCmdObj["targetDevSubNum"] = $targetDevSubNum;
+                            $devSubCmdObj["targetDevType"] = $targetDevType;
+                            $devSubCmdObj["targetObjID"] = $cmdArrTemp["controlB23"];
+                        }
+                        break;
+                    case 130:
+                        //温湿度
+                        $cmdFormatTemp = "@".$offset."/CdevSeqSubCmd/CcontrolB1/CcontrolB2/CcontrolB3";
+                        $cmdArrTemp = unpack($cmdFormatTemp, $msgBin);
+                        $devSeqSubCmd = $cmdArrTemp["devSeqSubCmd"];
+                        $subDevNum = $devSeqSubCmd >> 4;    //子设备号 为1
+                        $subCmd = $devSeqSubCmd & 0x0f;     //1=温湿度上报 2=解绑定 3=绑定
+                        
+                        $devSubCmdObj["subDevNum"] = $subDevNum;
+                        
+                        if ($subCmd == 1) {
+                            //温湿度上报
+                            $devSubCmdObj["tempReport"] = 1;//温湿度上报
+                            $devSubCmdObj["humidity"] = $cmdArrTemp["controlB2"];
+                            $devSubCmdObj["temperature"] = $cmdArrTemp["controlB3"];
+                        } else {
+                            if ($subCmd == 2) {
+                                //解绑定
+                                $devSubCmdObj["binding"] = 0;//解绑定
+                            } else if ($subCmd == 3) {
+                                //绑定
+                                $devSubCmdObj["binding"] = 1;//绑定
+                            }
+                            
+                            $controlB1 = $cmdArrTemp["controlB1"];
+                            $targetDevSubNum = $controlB1 >> 4;
+                            $targetDevType = $controlB1 & 0x0f;
+                            
+                            $cmdFormat = "@".$offset."/CdevSeqSubCmd/CcontrolB1/n1controlB23";
+                            $cmdArrTemp = unpack($cmdFormat, $msgBin);
+                            
+                            $devSubCmdObj["targetDevSubNum"] = $targetDevSubNum;
+                            $devSubCmdObj["targetDevType"] = $targetDevType;
+                            $devSubCmdObj["targetObjID"] = $cmdArrTemp["controlB23"];
+                        }
+                        break;
                 }
                 
                 $devSubCmdArr[] = $devSubCmdObj;
@@ -354,11 +502,11 @@ class Third_Ys_Devicesdk {
                         $dataObj["objID"] = $cmdArrTemp["dataObjID"];
                         $fixLen = $cmdArrTemp["dataObjFixLen"];
                         $extLen = $cmdArrTemp["dataObjExtLen"];
-                        
+                        $offset = $offset + 8;
                         $dataObj["objContent"] = Third_Ys_Helpersdk::decodeObjConfigProps($msgBin, $offset, $dataObjType);
                         
                         $dataObjArr[] = $dataObj;
-                        $offset = $offset + 8 + $fixLen + $extLen;
+                        $offset = $offset + $fixLen + $extLen;
                     }
                     
                     $cmdFormat = "@".$offset."/n1crc";
