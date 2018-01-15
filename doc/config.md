@@ -118,7 +118,7 @@ data数据域定义：
 
 >objType=4 终端
 
->cmdCode=192 手机服务器登录
+>cmdCode=192 读取配置
 
 >objID=57244 所要读取的色灯设备的ID
 
@@ -196,11 +196,11 @@ data数据域定义：
 		"crc":255
 	}';
 
->objType=4 终端
+>objType=5 所要读取的类别，终端=4、组=5，请参照操作对象类型定义。如果设置为255，则读取网关上的所有配置信息。
 
->cmdCode=192 手机服务器登录
+>cmdCode=192 读取配置
 
->objID=65535 读取所有终端设备的属性
+>objID=65535 读取该类别所有终端设备的属性
 
 >sliceSeq=1 分片序号，从1开始每次递增1，**只有需要分片读取的时候才添加该字段，初始读取不需要该字段；是否需要该字段由返回消息中的sliceM进行判断，参考返回消息中的说明**
 
@@ -384,3 +384,37 @@ data数据域定义：
 >dataObjArr->objContent->subCmdArr->targetDevType: 该设备所绑定的目标设备的设备类型
 
 >dataObjArr->objContent->subCmdArr->targetObjID: 该设备所绑定的目标设备的设备ID
+
+>**以下是终端对象-告警类设备（门磁、红外、煤气、烟雾、浸水）的子命令定义**
+
+>dataObjArr->objContent->subCmdArr->subDevNum: 该设备的设备号
+
+>dataObjArr->objContent->subCmdArr->subCmd: 子命令码 为1
+
+>dataObjArr->objContent->subCmdArr->securityReport: 告警模式 1=启用 0=未启用
+
+>dataObjArr->objContent->subCmdArr->realReport: 实时通知模式 1=启用 0=未启用
+
+>dataObjArr->objContent->subCmdArr->nightMode: 夜灯模式 1=启用 0=未启用
+
+>dataObjArr->objContent->subCmdArr->lost: 失联 1=发生 0=未发生
+
+>dataObjArr->objContent->subCmdArr->alarm1: 报警1 1=发生 0=未发生
+
+>**以下是终端对象-流明检测设备的子命令定义**
+
+>dataObjArr->objContent->subCmdArr->subDevNum: 该设备的设备号
+
+>dataObjArr->objContent->subCmdArr->lumenReport: 流明上报
+
+>dataObjArr->objContent->subCmdArr->lumens: 流明值
+
+>**以下是终端对象-温湿度检测设备的子命令定义**
+
+>dataObjArr->objContent->subCmdArr->subDevNum: 该设备的设备号
+
+>dataObjArr->objContent->subCmdArr->tempReport: 温湿度上报
+
+>dataObjArr->objContent->subCmdArr->humidity: 湿度值 0~100
+
+>dataObjArr->objContent->subCmdArr->temperature: 温度值 -64~190度，+64度的偏移
