@@ -154,6 +154,7 @@ string YSProtocol::decodeMsg(string $msgBin)
 	97-红外监测
 	98-煤气监测
 	129-流明监测
+	130-温湿度监测
 
 ### 网关相关指令定义
 
