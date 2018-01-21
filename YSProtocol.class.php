@@ -20,6 +20,7 @@ include 'YSProtocol.Helper.class.php';
 // include 'YSProtocol.TaskTable.class.min.php';
 // include 'YSProtocol.Helper.class.min.php';
 
+
 class Third_Ys_Sdk {
     //对象类型
     const GATE_OBJ_TYPE = 0;
@@ -83,7 +84,7 @@ class Third_Ys_Sdk {
                 break;
             case Third_Ys_Sdk::LOCATION_TYPE:
                 //地址围栏
-                $dataBin = Third_Ys_Locationsdk::encodeLocationMsg($msgJsonObj, $msgLen);
+                $dataBin = Third_Ys_Locationsdk::encodeLocMessage($msgJsonObj, $msgLen);
                 break;
             case Third_Ys_Sdk::TASKTABLE_TYPE:
                 //任务表
@@ -123,7 +124,7 @@ class Third_Ys_Sdk {
      * a-读取几个字符的字符串
      */
     public static function decodeMsg($msgBin) {
-        echo "[YSProtocol::decodeMsg] for -- ".bin2hex($msgBin)."\n\n";
+        echo "[YSProtocol::decodeMsg] for -- ".$msgBin."\n\n";
         
         $msgJson;
         $msgBinReal = hex2bin($msgBin);
