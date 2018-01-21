@@ -28,13 +28,19 @@ class Third_Ys_Gatesdk {
         $cmdCodeBin = pack("C",$cmdCode);
         $objIDBin = pack("n", self::$objID);
         $reservedBin = pack("n",0);
-        $dataBin = pack("a32a16a8",
-            $msgJsonObj->data->username,
-            $msgJsonObj->data->phoneNum,
-            $msgJsonObj->data->gateID);
+        
+        $nameUnicode = Third_Ys_Helpersdk::unicode_encode($msgJsonObj->data->username);
+        $nameUnicodeBin = pack("a64", $nameUnicode);
+        
+        $phone = $msgJsonObj->data->phoneNum;
+        $phoneAscHexBin = pack("a16", $phone);
+        $gateIDBin = pack("H16", $msgJsonObj->data->gateID);
+        
+        $dataBin = $nameUnicodeBin.$phoneAscHexBin.$gateIDBin;
+        
         $packBin = $propRegionBin.$objTypeBin . $cmdCodeBin
             .$objIDBin.$reservedBin.$dataBin;
-        $msgLen = 18+58;
+        $msgLen = 108;
         
         return $packBin;
     }
@@ -48,10 +54,15 @@ class Third_Ys_Gatesdk {
         $cmdCodeBin = pack("C", $cmdCode);
         $objIDBin = pack("n", self::$objID);
         $reservedBin = pack("n",0);
-        $dataBin = pack("a64a16h16",
-            $msgJsonObj->data->username,
-            $msgJsonObj->data->phoneNum,
-            $msgJsonObj->data->gateID);
+        
+        $nameUnicode = Third_Ys_Helpersdk::unicode_encode($msgJsonObj->data->username);
+        $nameUnicodeBin = pack("a64", $nameUnicode);
+        $phone = $msgJsonObj->data->phoneNum;
+        $phoneAscHexBin = pack("a16", $phone);
+        $gateIDBin = pack("H16", $msgJsonObj->data->gateID);
+        
+        $dataBin = $nameUnicodeBin.$phoneAscHexBin.$gateIDBin;
+        
         $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin
                     .$objIDBin.$reservedBin.$dataBin;
         $msgLen = 18+90;//18固定+用户名手机网关crc
@@ -332,7 +343,7 @@ class Third_Ys_Gatesdk {
                 "n1protoVer/".
                 "h16gateID/".
                 "h12gateMAC/".
-                "a32reserved/".
+                "h64reserved/".
                 "H32gateName/".
                 "n1hbLan/".
                 "n1hbWLan/".
@@ -421,7 +432,7 @@ class Third_Ys_Gatesdk {
                 "H32gateName/".
                 "n1hbLan/".
                 "n1hbWLan/".
-                "a68reserved/".
+                "h136reserved/".
                 "n1crc";
             $cmdArr = unpack($cmdFormat, $msgBin);
             
@@ -458,7 +469,7 @@ class Third_Ys_Gatesdk {
                 "n1cmdRetCode/".
                 "A64username/".
                 "A16phoneNum/".
-                "h16gateID/".
+                "H16gateID/".
                 "n1sign/".
                 "n1gateFixLen/".
                 "n1gateExtLen/".
@@ -477,6 +488,10 @@ class Third_Ys_Gatesdk {
             $tempGateName = Third_Ys_Helpersdk::decodeUnicodeStr($tempGateName);
             $cmdArr["gateName"] = $tempGateName;
             
+			$tempUserName = $cmdArr["username"];
+            $tempUserName = Third_Ys_Helpersdk::decodeUnicodeStr($tempUserName);
+            $cmdArr["username"] = $tempUserName;
+
             $msgCRC = $cmdArr["crc"];
         } else {
             //错误
@@ -484,9 +499,14 @@ class Third_Ys_Gatesdk {
                 "n1cmdRetCode/".
                 "A64username/".
                 "A16phoneNum/".
-                "h16gateID/".
+                "H16gateID/".
                 "n1crc";
             $cmdArr = unpack($cmdFormat, $msgBin);
+            
+            $tempUserName = $cmdArr["username"];
+            $tempUserName = Third_Ys_Helpersdk::decodeUnicodeStr($tempUserName);
+            $cmdArr["username"] = $tempUserName;
+            
             $msgCRC = $cmdArr["crc"];
         }
         
@@ -506,15 +526,15 @@ class Third_Ys_Gatesdk {
             //正确
             $cmdFormat = "@16/".
                 "n1cmdRetCode/".
-                "A32username/".
+                "A64username/".
                 "A16phoneNum/".
-                "A8gateID/".
+                "H16gateID/".
                 "n1sign/".
                 "n1gateFixLen/".
                 "n1gateExtLen/".
                 "n1protoVer/".
-                "A8gateID2/".
-                "A6gateMAC/".
+                "h16gateID2/".
+                "h12gateMAC/".
                 "@128/".
                 "H32gateName/".
                 "n1hbLan/".
@@ -527,16 +547,25 @@ class Third_Ys_Gatesdk {
             $tempGateName = Third_Ys_Helpersdk::decodeUnicodeStr($tempGateName);
             $cmdArr["gateName"] = $tempGateName;
             
+            $tempUserName = $cmdArr["username"];
+            $tempUserName = Third_Ys_Helpersdk::decodeUnicodeStr($tempUserName);
+            $cmdArr["username"] = $tempUserName;
+            
             $msgCRC = $cmdArr["crc"];
         } else {
             //错误
             $cmdFormat = "@16/".
                 "n1cmdRetCode/".
-                "a32username/".
-                "a16phoneNum/".
-                "a8gateID/".
+                "A64username/".
+                "A16phoneNum/".
+                "H16gateID/".
                 "n1crc";
             $cmdArr = unpack($cmdFormat, $msgBin);
+            
+            $tempUserName = $cmdArr["username"];
+            $tempUserName = Third_Ys_Helpersdk::decodeUnicodeStr($tempUserName);
+            $cmdArr["username"] = $tempUserName;
+            
             $msgCRC = $cmdArr["crc"];
         }
         
