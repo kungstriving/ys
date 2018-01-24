@@ -123,7 +123,7 @@ class Third_Ys_Sdk {
      * C-单字char
      * a-读取几个字符的字符串
      */
-    public static function decodeMsg($msgBin) {
+    public static function decodeMsg($msgBin, $typeMap=array()) {
         echo "[YSProtocol::decodeMsg] for -- ".$msgBin."\n\n";
         
         $msgJson;
@@ -167,10 +167,10 @@ class Third_Ys_Sdk {
                 $dataArray = Third_Ys_Locationsdk::decodeLocationMsg($msgBinReal, $msgCRC);
                 break;
             case Third_Ys_Sdk::TASKTABLE_TYPE:
-                $dataArray = Third_Ys_Tasktablesdk::decodeTaskMsg($msgBinReal, $msgCRC);
+                $dataArray = Third_Ys_Tasktablesdk::decodeTaskMsg($msgBinReal, $msgCRC, $typeMap);
                 break;
             case Third_Ys_Sdk::ALL_TYPE:
-                $dataArray = Third_Ys_Devicesdk::decodeDeviceMsg($msgBinReal, $msgCRC);
+                $dataArray = Third_Ys_Configsdk::decodeConfigMsg($msgBinReal, $msgCRC, $typeMap);
                 break;
         }
         
