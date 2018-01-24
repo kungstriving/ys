@@ -1,6 +1,6 @@
 <?php 
 
-class ConfigYSProtocol {
+class Third_Ys_Configsdk {
     //
     //命令码
     const CONFIG_CMDCODE = 192;   //0xC0
@@ -16,7 +16,7 @@ class ConfigYSProtocol {
         $propRegion;
         $packBin;
         
-        if ($cmdCode == ConfigYSProtocol::CONFIG_CMDCODE) {
+        if ($cmdCode == Third_Ys_Configsdk::CONFIG_CMDCODE) {
             echo "\n --- read config ---\n";
             $propRegion = 0x8000;
             $propRegionBin = pack("n", $propRegion);
@@ -33,6 +33,28 @@ class ConfigYSProtocol {
             return "";
         }
         
+    }
+    
+    /**
+     * 解码所有配置信息
+     * @param unknown $msgBin
+     * @param unknown $msgCRC
+     * @return array
+     */
+    public static function decodeConfigMsg($msgBin, &$msgCRC, $typeMap) {
+        
+        $dataArray;
+        $cmdFormat = "@13/C1cmdCode";
+        $cmdArr = unpack($cmdFormat, $msgBin);
+        $cmdCode = $cmdArr["cmdCode"];
+        
+        switch ($cmdCode) {
+            case self::READ_CONFIG_PROPS_CMDCODE:
+                $cmdArr = Third_Ys_Helpersdk::readConfigDecode($msgBin, $msgCRC, $typeMap);
+                break;
+        }
+        
+        return array('data'=>$cmdArr);
     }
     
 }
