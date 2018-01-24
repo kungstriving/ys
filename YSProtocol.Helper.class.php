@@ -2,7 +2,7 @@
 
 class Third_Ys_Helpersdk {
     
-    public static function readConfigDecode($msgBin, &$msgCRC) {
+    public static function readConfigDecode($msgBin, &$msgCRC, $typeMap) {
         echo "\n --- read config decode ---\n";
         //读取设备配置信息
         
@@ -56,7 +56,7 @@ class Third_Ys_Helpersdk {
                         $fixLen = $cmdArrTemp["dataObjFixLen"];
                         $extLen = $cmdArrTemp["dataObjExtLen"];
                         $offset = $offset + 8;
-                        $dataObj["objContent"] = Third_Ys_Helpersdk::decodeObjConfigProps($msgBin, $offset, $dataObjType);
+                        $dataObj["objContent"] = Third_Ys_Helpersdk::decodeObjConfigProps($msgBin, $offset, $dataObjType, $typeMap);
                         
                         $dataObjArr[] = $dataObj;
                         $offset = $offset + $fixLen + $extLen;
@@ -195,7 +195,7 @@ class Third_Ys_Helpersdk {
         return $cmdArr;
     }
     
-    public static function decodeObjConfigProps($msgBin, $offset, $objType) {
+    public static function decodeObjConfigProps($msgBin, $offset, $objType, $typeMap) {
         
         $props = array();
         
@@ -259,7 +259,7 @@ class Third_Ys_Helpersdk {
                     
                 } else if ($taskType = 2) {
                     //闹钟
-                    $cmdFormat = "@".$offset."/C1clockFirstByte/C1hour/C1minute/C1/second";
+                    $cmdFormat = "@".$offset."/C1clockFirstByte/C1hour/C1minute/C1second";
                     $cmdArr = unpack($cmdFormat, $msgBin);
                     
                     $clockSet = array();
@@ -310,24 +310,28 @@ class Third_Ys_Helpersdk {
                 
                 $offset = $offset + 16;
                 
+                
+                /////// 扩展域 ///////////
+                
                 $devCmdArr = array();
                 
                 //循环读取站点信息
                 for($i = 0; $i < $devNum; $i++) {
                     $devCmdObj = array();
                     //读取站点类型
-                    $cmdFormatTemp = "@".$offset."/n1devID/CdevType/CdevNum/n1devSubCmdNum";
+                    $cmdFormatTemp = "@".$offset."/n1devID/n1devSubCmdNum";
                     $cmdArrTemp = unpack($cmdFormatTemp, $msgBin);
                     $devCmdObj["devID"] = $cmdArrTemp["devID"];
-                    $devType = $cmdArrTemp["devType"];
+                    $devIDTemp = $cmdArrTemp["devID"];
+                    
+                    $devType = $typeMap[$devIDTemp];    //从typeMap中获取设备类型
                     $devCmdObj["devType"] = $devType;
                     $devSubCmdNum = $cmdArrTemp["devSubCmdNum"];
                     $devCmdObj["devSubCmdNum"] = $devSubCmdNum;
                     $devSubCmdArr = array();
-                    $offset = $offset + 6;
+                    $offset = $offset + 4;
                     for($j = 0; $j < $devSubCmdNum; $j++) {
-                        
-                        $devSubCmdArr[] = self::decodeSubCmdBin($msgBin, $offset, $devType);
+                        $devSubCmdArr[] = Third_Ys_Devicesdk::decodeSubCmdBin($msgBin, $offset, $devType);
                         $offset = $offset + 4;
                     }
                     
