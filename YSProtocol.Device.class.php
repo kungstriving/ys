@@ -5,6 +5,7 @@ class Third_Ys_Devicesdk {
     const IDENTIFY_DEVICE_CMDCODE = 4;
     const EXIT_IDENTIFY_DEVICE_CMDCODE = 5;
     const REMOTE_CONTROL_CMDCODE = 16;
+    const REMOTE_SIGNAL_CMDCODE = 20;
     const STATUS_UPLOAD_CMDCODE = 32;
     
     const READ_CONFIG_PROPS_CMDCODE = 192;
@@ -457,6 +458,62 @@ class Third_Ys_Devicesdk {
         return $packBin;
     }
     
+    private static function remoteSignalEncode($msgJsonObj, &$msgLen) {
+        echo "\n --- remote signal ---\n";
+        
+        $cmdCode = $msgJsonObj->cmdCode;
+        $objType = $msgJsonObj->objType;
+        $objID = $msgJsonObj->objID;
+        
+        if (property_exists($msgJsonObj, "sliceSeq")) {
+            
+            //分片
+            $sliceSeq = $msgJsonObj->sliceSeq;
+            
+            $propRegion = 0x8080;
+            $propRegionBin = pack("n", $propRegion);
+            $objTypeBin = pack("C", $objType);
+            $cmdCodeBin = pack("C", $cmdCode);
+            $objIDBin = pack("n", $objID);
+            $sliceSeqBin = pack("n", $sliceSeq);
+            
+            $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin
+                .$objIDBin.$sliceSeqBin;
+            $msgLen = 20+0;
+            
+        } else {
+            //不分片
+            $propRegion = 0x8000;
+            $propRegionBin = pack("n", $propRegion);
+            $objTypeBin = pack("C", $objType);
+            $cmdCodeBin = pack("C", $cmdCode);
+            $objIDBin = pack("n", $objID);
+            $reserved2B = pack("n", 0);
+            $packBin = $propRegionBin.$objTypeBin.$cmdCodeBin
+                .$objIDBin.$reserved2B;
+            
+            $msgLen = 18+0;
+        }
+        
+        if ($objID == 65534) {
+            //多个站点遥信
+            $devArr = $msgJsonObj->devArr;
+            $devNum = count($devArr);
+            $devNumBin = pack("n", $devNum);
+            $packBin .= $devNumBin;
+            
+            for ($i = 0; $i < $devNum; $i++) {
+                $devID = $devArr[$i];
+                $devIDBin = pack("n", $devID);
+                $packBin .= $devIDBin;
+            }
+            
+            $msgLen += (2 + 2*$devNum);
+        }
+        
+        return $packBin;
+    }
+    
     public static function encodeDeviceMsg($msgJsonObj, &$msgLen) {
         
         $cmdCode = $msgJsonObj->cmdCode;
@@ -478,6 +535,10 @@ class Third_Ys_Devicesdk {
             case self::REMOTE_CONTROL_CMDCODE:
                 //遥控
                 $packBin = self::remoteControl($msgJsonObj, $msgLen);
+                break;
+            case self::REMOTE_SIGNAL_CMDCODE:
+                //遥信
+                $packBin = self::remoteSignalEncode($msgJsonObj, $msgLen);
                 break;
             case self::READ_CONFIG_PROPS_CMDCODE:
                 echo "\n --- read devices config ---\n";
@@ -514,11 +575,14 @@ class Third_Ys_Devicesdk {
             case self::REMOTE_CONTROL_CMDCODE:
                 $cmdArr = self::remoteControlDecode($msgBin, $msgCRC);
                 break;
+            case self::REMOTE_SIGNAL_CMDCODE:
+                //遥信
+                $cmdArr = self::remoteSignalDecode($msgBin, $msgCRC);
+                break;
             case self::STATUS_UPLOAD_CMDCODE:
                 $cmdArr = self::statusUploadDecode($msgBin, $msgCRC);
                 break;
             case self::READ_CONFIG_PROPS_CMDCODE:
-//                 $cmdArr = self::readConfigDecode($msgBin, $msgCRC);
                 $cmdArr = Third_Ys_Helpersdk::readConfigDecode($msgBin, $msgCRC);
                 break;
             case self::LIST_OBJID_CMDCODE:
@@ -527,6 +591,206 @@ class Third_Ys_Devicesdk {
         }
         
         return array('data'=>$cmdArr);
+        
+    }
+    
+    private static function remoteSignalDecode($msgBin, &$msgCRC) {
+        echo "\n --- remote signal decode -----\n";
+        
+        //遥信信息的解析
+        
+        //根据单个或批量或所有来区分
+        $cmdFormat = "@14/n1objID";
+        $cmdArr = unpack($cmdFormat, $msgBin);
+        $objID = $cmdArr["objID"];
+        
+        if ($objID == 65535 || $objID == 65534) {
+            //65535=所有终端
+            //65534=批量终端
+            
+            //是否有分片
+            $cmdFormat = "@10/n1propRegion";
+            $cmdArr = unpack($cmdFormat, $msgBin);
+            $propRegion = $cmdArr["propRegion"];
+            
+            $sliceM = 0x0080 & $propRegion;
+            if ($sliceM == 0x0080) {
+                //分片
+                
+                //正确或错误应答
+                $sliceE = 0x0040 & $propRegion;
+                
+                if ($sliceE == 0x0040) {
+                    //错误
+                    $cmdFormat = "@16/".
+                        "n1cmdRetCode/".
+                        "n1crc";
+                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    $msgCRC = $cmdArr["crc"];
+                } else {
+                    //正确
+                    $cmdFormat = "@16/n1sliceID/".
+                        "n1objNum/";
+                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    $objNum = $cmdArr["objNum"];
+                    $sliceID = $cmdArr["sliceID"];
+                    
+                    $devArr = array();
+                    $offset = 20;
+                    for ($i = 0; $i < $objNum; $i++) {
+                        $devObj = array();
+                        
+                        $cmdFormatTemp = "@".$offset."/n1devID/C1devType/C1devNum/n1subCmdNum";
+                        $cmdArrTemp = unpack($cmdFormatTemp, $msgBin);
+                        $devID = $cmdArrTemp["devID"];
+                        $devObj["devID"] = $devID;
+                        $devType = $cmdArrTemp["devType"];
+                        $devObj["devType"] = $devType;
+                        $devSubCmdNum = $cmdArrTemp["subCmdNum"];
+                        
+                        $offset += 6;
+                        $devSubCmdArr = array();
+                        for ($j = 0; $j < $devSubCmdNum; $j++) {
+                            
+                            $devSubCmdArr[] = self::decodeSubCmdBin($msgBin, $offset, $devType);
+                            $offset = $offset + 4;
+                        }
+                        
+                        $devObj["devSubCmdArr"] = $devSubCmdArr;
+                        
+                        $devArr[] = $devObj;
+                    }
+                    
+                    $cmdFormat = "@".$offset."/n1crc";
+                    $cmdArrTemp = unpack($cmdFormat, $msgBin);
+                    
+                    $cmdArr["sliceID"] = $sliceID;
+                    $cmdArr["devArr"] = $devArr;
+                    $cmdArr["crc"] = $cmdArrTemp["crc"];
+                    
+                    //添加分片标志
+                    $sliceT = 0x0010 & $propRegion;
+                    if ($sliceT == 0x0010) {
+                        //结尾了
+                        $cmdArr["sliceT"] = 1;
+                    } else {
+                        $cmdArr["sliceM"] = 1;
+                    }
+                    
+                    $msgCRC = $cmdArr["crc"];
+                }
+                
+            } else {
+                //不分片
+                
+                //正确或错误应答
+                
+                $cmdFormat = "@16/n1cmdRetCode/";
+                $cmdArr = unpack($cmdFormat, $msgBin);
+                $cmdRetCode = $cmdArr["cmdRetCode"];
+                
+                if ($cmdRetCode == 0) {
+                    //正确
+                    $cmdFormat = "@16/n1cmdRetCode/".
+                        "n1objNum/";
+                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    $objNum = $cmdArr["objNum"];
+                    $cmdRetCode = $cmdArr["cmdRetCode"];
+                    
+                    $devArr = array();
+                    $offset = 20;
+                    for ($i = 0; $i < $objNum; $i++) {
+                        $devObj = array();
+                        
+                        $cmdFormatTemp = "@".$offset."/n1devID/C1devType/C1devNum/n1subCmdNum";
+                        $cmdArrTemp = unpack($cmdFormatTemp, $msgBin);
+                        $devID = $cmdArrTemp["devID"];
+                        $devObj["devID"] = $devID;
+                        $devType = $cmdArrTemp["devType"];
+                        $devObj["devType"] = $devType;
+                        $devSubCmdNum = $cmdArrTemp["subCmdNum"];
+                        
+                        $offset += 6;
+                        $devSubCmdArr = array();
+                        for ($j = 0; $j < $devSubCmdNum; $j++) {
+                            
+                            $devSubCmdArr[] = self::decodeSubCmdBin($msgBin, $offset, $devType);
+                            $offset = $offset + 4;
+                        }
+                        
+                        $devObj["devSubCmdArr"] = $devSubCmdArr;
+                        
+                        $devArr[] = $devObj;
+                    }
+                    
+                    $cmdFormat = "@".$offset."/n1crc";
+                    $cmdArrTemp = unpack($cmdFormat, $msgBin);
+                    
+                    $cmdArr["devArr"] = $devArr;
+                    $cmdArr["crc"] = $cmdArrTemp["crc"];
+                    
+                    $msgCRC = $cmdArr["crc"];
+                } else {
+                    $cmdFormat = "@16/".
+                        "n1cmdRetCode/".
+                        "n1crc";
+                    $cmdArr = unpack($cmdFormat, $msgBin);
+                    $msgCRC = $cmdArr["crc"];
+                }
+            }
+            
+        } else {
+            //单个设备
+            
+            $cmdFormat = "@16/n1cmdRetCode/";
+            $cmdArr = unpack($cmdFormat, $msgBin);
+            $cmdRetCode = $cmdArr["cmdRetCode"];
+            
+            if ($cmdRetCode == 0) {
+                
+                //正确
+                $cmdFormat = "@16/".
+                    "n1cmdRetCode/".
+                    "C1devType/".
+                    "C1devNum/".
+                    "n1devSubCmdNum/";
+                $cmdArrTemp = unpack($cmdFormat, $msgBin);
+                
+                $devType = $cmdArrTemp["devType"];
+                $devSubCmdNum = $cmdArrTemp["devSubCmdNum"];
+                
+                $offset = 20;
+                $devSubCmdArr = array();
+                for ($j = 0; $j < $devSubCmdNum; $j++) {
+                    
+                    $devSubCmdArr[] = self::decodeSubCmdBin($msgBin, $offset, $devType);
+                    $offset = $offset + 4;
+                }
+                
+                $cmdFormat = "@".$offset."/n1crc";
+                $cmdArrCrc = unpack($cmdFormat, $msgBin);
+                
+                $cmdArr = array();
+                $cmdArr["cmdRetCode"] = $cmdArrTemp["cmdRetCode"];
+                $cmdArr["devID"] = $objID;
+                $cmdArr["devType"] = $devType;
+                $cmdArr["devSubCmdArr"] = $devSubCmdArr;
+                $cmdArr["crc"] = $cmdArrCrc["crc"];
+                
+                $msgCRC = $cmdArr["crc"];
+            } else {
+                //错误
+                $cmdFormat = "@16/".
+                    "n1cmdRetCode/".
+                    "n1crc";
+                $cmdArr = unpack($cmdFormat, $msgBin);
+                $msgCRC = $cmdArr["crc"];
+            }
+            
+        }
+        
+        return $cmdArr;
+        
         
     }
     
