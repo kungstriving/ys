@@ -68,3 +68,19 @@ $arrtemp = unpack("H32", $testHex);
 
 var_dump($arrtemp);
 
+function foo($a,$b=array()) {
+    var_dump($a);
+    var_dump($b);
+    echo $b[200];
+}
+
+$testMap = array();
+$testMap[200] = 96;
+$testMap[300] = 98;
+foo(4,$testMap);
+
+echo "\n----------".pack("a4", 0);
+
+
+echo "\n----------".pack("C", 0);
+
