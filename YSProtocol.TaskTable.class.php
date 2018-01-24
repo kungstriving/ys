@@ -280,7 +280,7 @@ class Third_Ys_Tasktablesdk {
     
     //////////////////// 解码 ////////////////////
     
-    public static function decodeTaskMsg($msgBin, &$msgCRC) {
+    public static function decodeTaskMsg($msgBin, &$msgCRC, $typeMap) {
         
         $dataArray;
         $cmdFormat = "@13/C1cmdCode";
@@ -302,7 +302,7 @@ class Third_Ys_Tasktablesdk {
                 $cmdArr = Third_Ys_Helpersdk::decodeCommonErrorMsg($msgBin, $msgCRC);
                 break;
             case self::READ_CONFIG_PROPS_CMDCODE:
-                $cmdArr = Third_Ys_Helpersdk::readConfigDecode($msgBin, $msgCRC);
+                $cmdArr = Third_Ys_Helpersdk::readConfigDecode($msgBin, $msgCRC, $typeMap);
                 break;
             case self::LIST_OBJID_CMDCODE:
                 $cmdArr = Third_Ys_Helpersdk::listAllObjIDsDecode($msgBin, $msgCRC);
